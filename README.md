@@ -16,24 +16,9 @@
 
 **Docket** is a [Hermes Agent](https://hermes-agent.nousresearch.com) plugin for plumbers, electricians, handymen and anyone who quotes jobs from a price list. You describe the job the way you'd say it in the van. Docket turns the words into price-book items, **prices every line in code** (the model never produces a number), and sends you a quote card with buttons. Your customer gets a link to accept; you get pinged and book the day with one tap. When the job is done, Docket writes the invoice.
 
-<table>
-<tr>
-<td width="56%" valign="top">
-
-**On your phone (Telegram, live test)**
-
-<img src="assets/telegram-flow.png" alt="Telegram: quote card with Send, Edit, Discard; customer opened; customer accepted with booking buttons">
-
-</td>
-<td width="44%" valign="top">
-
-**What your customer sees**
-
-<img src="assets/accept-page.png" alt="Customer accept page on a phone with an Accept quote button">
-
-</td>
-</tr>
-</table>
+<p align="center">
+  <img src="assets/phones.png" alt="Owner on Telegram: quote card with Send, Edit, Discard, then customer opened and accepted with booking buttons. Customer: the accept page with an Accept quote button." width="100%">
+</p>
 
 ## Contents
 
