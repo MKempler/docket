@@ -200,6 +200,10 @@ class Store:
             except sqlite3.IntegrityError:
                 return False
 
+    def has_send(self, quote_id: int, version: int, channel: str) -> bool:
+        return self.conn.execute("SELECT 1 FROM sends WHERE send_key = ?",
+                                 (f"{quote_id}:{version}:{channel}",)).fetchone() is not None
+
     def get(self, quote_id: int) -> QuoteRecord:
         row = self.conn.execute(
             "SELECT q.id, q.customer_id, q.site, q.zip, q.status, q.version, q.scheduled_for, q.created_at, q.updated_at, "
