@@ -13,5 +13,8 @@ provides_tools:
   - docket_quote
   - docket_send_quote
   - docket_jobs
+  - docket_followups
+  - docket_run_sheet
+  - docket_pipeline
 provides_hooks:
   - pre_tool_call

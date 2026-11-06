@@ -143,6 +143,94 @@ def _jobs_tool(args: dict, **kwargs) -> str:
         return _err(exc)
 
 
+REPORT_SCHEMAS = {
+    "docket_followups": {
+        "name": "docket_followups",
+        "description": ("List quotes the customer has not answered for N+ days, oldest first, each with a suggested "
+                        "nudge. Read-only: it never contacts customers. Deliver its text to the owner as returned."),
+        "parameters": {"type": "object", "properties": {
+            "stale_days": {"type": "integer", "description": "Minimum days waiting (default 5)"}}},
+    },
+    "docket_run_sheet": {
+        "name": "docket_run_sheet",
+        "description": ("Jobs scheduled for a day (default tomorrow) with addresses and the materials to load on the "
+                        "truck. Read-only. Deliver its text to the owner as returned."),
+        "parameters": {"type": "object", "properties": {
+            "date": {"type": "string", "description": "YYYY-MM-DD; default tomorrow"}}},
+    },
+    "docket_pipeline": {
+        "name": "docket_pipeline",
+        "description": "Open quote value, quotes accepted this week and win rate. Read-only.",
+        "parameters": {"type": "object", "properties": {}},
+    },
+}
+
+
+def _report_tool(name):
+    def handler(args: dict, **kwargs) -> str:
+        try:
+            from datetime import date as _date
+            from . import reports, runtime
+            from .service import accept_url
+            store = runtime.store()
+            if name == "docket_followups":
+                days = int((args or {}).get("stale_days") or 5)
+                base = store.get_meta("public_base_url") or None
+                result = reports.followups(store, stale_days=max(1, days),
+                                           accept_url=lambda rec: accept_url(store, rec, base))
+            elif name == "docket_run_sheet":
+                raw = str((args or {}).get("date") or "").strip()
+                result = reports.run_sheet(store, day=_date.fromisoformat(raw) if raw else None)
+            else:
+                result = reports.pipeline(store)
+            return json.dumps({"ok": True, **result})
+        except Exception as exc:
+            logger.exception("%s failed", name)
+            return _err(exc)
+    return handler
+
+
+BLUEPRINT_SLOTS_COMMON = [
+    {"name": "recurrence", "type": "weekdays", "label": "Repeat on", "default": "weekdays",
+     "options": ["everyday", "weekdays", "weekends"]},
+    {"name": "deliver", "type": "enum", "label": "Where to deliver?", "default": "origin",
+     "options": ["origin", "local"], "strict": False},
+]
+SILENT = " If the tool's text starts with 'Nothing to report', respond with [SILENT]."
+
+
+def _register_blueprints(ctx):
+    specs = [
+        ("quote-followups", "Chase unsigned quotes",
+         "Every morning, list quotes customers haven't answered, with a ready-to-send nudge for each. Never sends.",
+         [{"name": "time", "type": "time", "label": "What time?", "default": "08:00"},
+          {"name": "days", "type": "enum", "label": "Quotes unanswered for", "default": "5",
+           "options": ["3", "5", "7", "14"]}],
+         "Call the docket_followups tool with stale_days={days}. Deliver its text to me exactly as returned, "
+         "without changing any number or adding prices." + SILENT),
+        ("run-sheet", "Tomorrow's run sheet",
+         "Each evening: tomorrow's jobs with addresses and the materials to load on the truck.",
+         [{"name": "time", "type": "time", "label": "What time?", "default": "17:00"}],
+         "Call the docket_run_sheet tool with no date. Deliver its text to me exactly as returned." + SILENT),
+        ("weekly-pipeline", "Weekly pipeline",
+         "Monday summary: open quote value, quotes won this week, win rate.",
+         [{"name": "time", "type": "time", "label": "What time?", "default": "07:30"}],
+         "Call the docket_pipeline tool. Deliver its text to me exactly as returned."),
+    ]
+    for key, title, description, slots, prompt in specs:
+        recurrence = [{"name": "recurrence", "type": "weekdays", "label": "Repeat on",
+                       "default": "weekdays" if key != "weekly-pipeline" else "everyday",
+                       "options": ["everyday", "weekdays", "weekends"]}]
+        schedule = "{minute} {hour} * * {dow}" if key != "weekly-pipeline" else "{minute} {hour} * * 1"
+        all_slots = slots + (recurrence if key != "weekly-pipeline" else []) + [BLUEPRINT_SLOTS_COMMON[1]]
+        try:
+            ctx.register_automation_blueprint(key, title=title, description=description, category="work",
+                                              schedule_template=schedule, prompt_template=prompt, slots=all_slots,
+                                              tags=["docket", "trades", "quotes"])
+        except Exception as exc:
+            logger.info("Docket: blueprint %s not registered (%s)", key, exc)
+
+
 def _pricebook_command(raw_args: str = "", **kwargs) -> str:
     try:
         from . import runtime
@@ -212,7 +300,11 @@ def register(ctx):
                       description="Send a quote to the customer", emoji="📨")
     ctx.register_tool(name="docket_jobs", toolset="docket", schema=JOBS_SCHEMA, handler=_jobs_tool,
                       description="Quotes and jobs by status", emoji="📋")
+    for name, schema in REPORT_SCHEMAS.items():
+        ctx.register_tool(name=name, toolset="docket", schema=schema, handler=_report_tool(name),
+                          description=schema["description"].split(".")[0], emoji="📋")
     ctx.register_hook("pre_tool_call", _make_gate(ctx))
+    _register_blueprints(ctx)
     ctx.register_command("quote", make_quote_command(ctx), description="Price, revise or send a quote",
                          args_hint="<customer, ZIP, work> | show|revise|send|discard Q-1001")
     ctx.register_command("jobs", jobs, description="Your Docket quotes and jobs by status", args_hint="[status]")
