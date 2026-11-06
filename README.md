@@ -67,7 +67,7 @@ Then start a **new** Hermes session (new plugins' tools load in the next session
 /blueprint                    # Docket's three automations
 ```
 
-| You should see | |
+| You should see | Example |
 |---|---|
 | A quote for **$1,972.36** with every line's pricing rule | `Replace 50-gal gas water heater: 3 h × $135.00 = $405.00; materials $1,222.50 …` |
 | A customer page with **Accept quote** | served locally at `http://127.0.0.1:8787/q/…` |
@@ -82,12 +82,12 @@ Then start a **new** Hermes session (new plugins' tools load in the next session
 
 ```mermaid
 flowchart LR
-    A["🗣️ Owner describes the job<br/><i>'swap the 50 gal heater,<br/>permit, haul away, Saturday'</i>"] --> B["🤖 Model maps words<br/>to price-book codes<br/><b>no money fields</b>"]
-    B --> C["🧮 Docket engine<br/>prices every line<br/><b>exact, with its rule</b>"]
-    C --> D["📱 Quote card<br/>✅ Send · ✏️ Edit · 🗑"]
-    D -->|"owner taps ✅"| E["🔗 Customer page<br/>Accept / Decline"]
-    E -->|"customer accepts"| F["📅 Owner pinged<br/>one tap to book"]
-    F --> G["🧾 Job done →<br/>invoice (Obol or PDF)"]
+    A["🗣️ You describe<br/>the job"] --> B["🤖 Model:<br/>words → codes"]
+    B --> C["🧮 Engine:<br/>exact prices"]
+    C --> D["📱 You tap<br/>✅ Send"]
+    D --> E["🔗 Customer<br/>accepts"]
+    E --> F["📅 One tap<br/>to book"]
+    F --> G["🧾 Invoice"]
     style C fill:#2a78d6,color:#fff,stroke:#2a78d6
     style D fill:#1baf7a,color:#fff,stroke:#1baf7a
 ```
