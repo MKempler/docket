@@ -280,6 +280,7 @@ def model_intake(llm: Any, book: PriceBook, text: str, *, previous: dict[str, An
     return _validated(book, parsed, text=text, previous=previous)
 
 
+PARTS_ONLY_RE = re.compile(r"\b(parts? only|materials? only|drop(?:ped)? off|supply only|just the part)\b", re.I)
 HOURS_RE = re.compile(r"\b\d+(?:\.\d+)?\s*(?:h|hr|hrs|hour|hours)\b", re.I)
 
 
@@ -332,6 +333,30 @@ def _validated(book: PriceBook, parsed: dict[str, Any], *, text: str = "", previ
                 continue
             kept.append(it)
         items = kept
+
+        # A loose part becomes the full job when the words name the job (e.g. TOILET -> TOILET-REPLACE for
+        # "new toilet"), unless the owner asked for parts only.
+        if not PARTS_ONLY_RE.search(text):
+            chosen = {it["code"] for it in items}
+            for it in items:
+                if book.lookup(it["code"])[0] != "material":
+                    continue
+                for asm_code in mentioned:
+                    asm = book.assemblies.get(asm_code)
+                    if asm and asm_code not in chosen and any(c.code == it["code"] for c in asm.materials):
+                        notes.append(f"Used the full job '{asm.name}' instead of the loose part {it['code']}")
+                        it["code"] = asm_code
+                        chosen.add(asm_code)
+                        break
+
+    # A fee can't exceed what it applies to (price book `limit_to`), e.g. one haul-away per replaced fixture.
+    for it in items:
+        fee = book.fees.get(it["code"])
+        if fee and fee.limit_to:
+            cap = sum((Decimal(str(o["qty"])) for o in items if o["code"] in fee.limit_to), Decimal(0))
+            if cap > 0 and Decimal(str(it["qty"])) > cap:
+                notes.append(f"{fee.name}: {it['qty']} reduced to {cap} (one per {', '.join(fee.limit_to)})")
+                it["qty"] = str(cap)
 
     flags = [f for f in parsed.get("flags") or [] if f in FLAG_PATTERNS]
     if text:

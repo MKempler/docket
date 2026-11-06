@@ -37,6 +37,7 @@ class Fee:
     unit: str
     amount: Decimal
     aliases: tuple[str, ...] = ()
+    limit_to: tuple[str, ...] = ()     # qty can't exceed the total qty of these items in the job
 
 
 @dataclass(frozen=True)
@@ -301,7 +302,8 @@ def parse_pricebook(text: str, source: str = "<text>") -> tuple[PriceBook | None
         amount = r.money(node, "amount", path)
         name = r.text(node, "name", path)
         if amount is not None and name:
-            fees[c] = Fee(c, name, str((node or {}).get("unit") or "each"), amount, r.aliases(node, path))
+            limit = tuple(str(x).strip().upper() for x in ((node or {}).get("limit_to") or []))
+            fees[c] = Fee(c, name, str((node or {}).get("unit") or "each"), amount, r.aliases(node, path), limit)
 
     assemblies: dict[str, Assembly] = {}
     asm_node = data.get("assemblies") or {}
@@ -326,6 +328,10 @@ def parse_pricebook(text: str, source: str = "<text>") -> tuple[PriceBook | None
     clashes = (set(materials) & set(fees)) | (set(materials) & set(assemblies)) | (set(fees) & set(assemblies))
     for code in sorted(clashes):
         r.err(code, "code is used in more than one section; codes must be unique")
+    for code, fee in fees.items():
+        for target in fee.limit_to:
+            if target not in assemblies and target not in materials:
+                r.err(f"fees.{code}.limit_to", f"{target} is not an assembly or material")
     owners: dict[str, str] = {}
     for group in (assemblies, fees, materials):
         for code, entry in group.items():

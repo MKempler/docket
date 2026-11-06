@@ -55,8 +55,18 @@ materials:                # price = cost x (1 + markup), rounded to the cent
 
 fees:                     # flat amounts, not taxed
   CAMERA:   { name: "Sewer camera inspection",      unit: each, amount: "175.00", aliases: ["camera", "camera inspection", "scope the line"] }
-  HAULAWAY: { name: "Haul away old fixture",        unit: each, amount: "35.00", aliases: ["haul away", "haul off", "haul old", "take old", "dispose of old"] }
-  PERMIT-WH: { name: "Water heater permit",         unit: each, amount: "85.00", aliases: ["permit"] }
+  HAULAWAY:
+    name: Haul away old fixture
+    unit: each
+    amount: "35.00"
+    aliases: ["haul away", "haul off", "haul old", "take old", "dispose of old"]
+    limit_to: [WH50-REPLACE, TOILET-REPLACE, DISPOSAL-INSTALL, FAUCET-KITCHEN]   # one per replaced fixture
+  PERMIT-WH:
+    name: Water heater permit
+    unit: each
+    amount: "85.00"
+    aliases: ["permit"]
+    limit_to: [WH50-REPLACE]                                                     # one per water heater
 
 assemblies:               # labor hours and materials per unit of the assembly
   WH50-REPLACE:

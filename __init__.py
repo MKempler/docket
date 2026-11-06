@@ -115,6 +115,12 @@ def _make_quote_tool(ctx):
                 surface = ctx.session_surface() or ""
             except Exception:
                 pass
+            if surface == "desktop":
+                return json.dumps({"ok": True, "quote_id": rec.number, "version": rec.version, "status": rec.status,
+                                   "complete": rec.complete, "total": rec.total, "notes": d.intake.notes,
+                                   "next": (f'Show the quote by writing this exact line as its own paragraph: '
+                                            f'::docket-quote{{id="{rec.number}"}}  It renders the quote card with '
+                                            "a Send button. Then add one short sentence; do not list the prices.")})
             if runtime.push_quote_card(rec, surface):
                 return json.dumps({"ok": True, "quote_id": rec.number, "version": rec.version, "status": rec.status,
                                    "card_sent": True, "complete": rec.complete, "notes": d.intake.notes,

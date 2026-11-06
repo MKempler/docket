@@ -125,3 +125,19 @@ def test_guards_keep_what_the_owner_actually_said():
     llm = FakeLLM({"items": [{"code": "LABOR", "qty": 1.5}, {"code": "HAULAWAY", "qty": 1}], "zip": "62712"})
     r = intake(BOOK, "Pete Hall: 1.5 hours labor and haul away the old regulator", llm)
     assert codes(r) == {"LABOR": "1.5", "HAULAWAY": "1"} and r.args["zip"] == "62712"
+
+
+def test_eval_job_29_part_becomes_job_and_fee_is_capped():
+    # The one real miss in the eval: the model chose the loose TOILET part and copied "3" onto haul-away.
+    llm = FakeLLM({"items": [{"code": "TOILET-RESET", "qty": 3}, {"code": "TOILET", "qty": 1},
+                             {"code": "HAULAWAY", "qty": 3}], "zip": "62704"})
+    r = intake(BOOK, "Vic Lane 62704 3 toilet resets plus 1 new toilet, haul away the old one", llm)
+    assert codes(r) == {"TOILET-RESET": "3", "TOILET-REPLACE": "1", "HAULAWAY": "1"}
+    q = price(BOOK, spec_from_args(r.args))
+    assert str(q.total) == "1138.52"                     # the eval's expected total for job 29
+
+
+def test_parts_only_keeps_the_part():
+    llm = FakeLLM({"items": [{"code": "TOILET", "qty": 1}], "zip": "62704"})
+    r = intake(BOOK, "Vic Lane 62704 drop off a new toilet, parts only", llm)
+    assert codes(r) == {"TOILET": "1"}

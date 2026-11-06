@@ -94,6 +94,7 @@ class Store:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
         self.lock = threading.RLock()
+        self.listeners: list = []          # callables(quote_id, to_status), called after commit
         with self.lock, self.conn:
             self.conn.executescript(SCHEMA)
 
@@ -157,6 +158,7 @@ class Store:
                 "VALUES (?, ?, ?, ?, 'draft', 1, ?, ?)", (next_id, customer_id, site, zip_code, ts, ts))
             self._insert_version(next_id, 1, spec, quote, "", ts)
             self._event(next_id, 1, None, "draft", actor, surface, "created", ts)
+        self._changed(next_id, "draft")
         return self.get(next_id)
 
     def revise(self, quote_id: int, spec: dict, quote: dict, *, note: str, actor: str, surface: str = "") -> QuoteRecord:
@@ -170,6 +172,7 @@ class Store:
             self.conn.execute("UPDATE quotes SET version = ?, status = 'draft', updated_at = ? WHERE id = ?",
                               (version, ts, quote_id))
             self._event(quote_id, version, rec.status, "draft", actor, surface, f"revised to v{version}: {note}", ts)
+        self._changed(quote_id, "draft")
         return self.get(quote_id)
 
     def transition(self, quote_id: int, to_status: str, *, actor: str, surface: str = "", detail: str = "",
@@ -187,6 +190,7 @@ class Store:
                 self.conn.execute("UPDATE quotes SET scheduled_for = ? WHERE id = ?", (scheduled_for, quote_id))
             self.conn.execute("UPDATE quotes SET status = ?, updated_at = ? WHERE id = ?", (to_status, ts, quote_id))
             self._event(quote_id, rec.version, rec.status, to_status, actor, surface, detail, ts)
+        self._changed(quote_id, to_status)
         return self.get(quote_id)
 
     def record_send(self, quote_id: int, version: int, channel: str, ref: str = "") -> bool:
@@ -247,6 +251,13 @@ class Store:
         return row[0] if row else ""
 
     # ---- internals ---------------------------------------------------------
+    def _changed(self, quote_id: int, status: str) -> None:
+        for fn in list(self.listeners):
+            try:
+                fn(quote_id, status)
+            except Exception:
+                pass
+
     def _insert_version(self, quote_id: int, version: int, spec: dict, quote: dict, note: str, ts: str) -> None:
         self.conn.execute(
             "INSERT INTO quote_versions (quote_id, version, spec_json, quote_json, total, complete, note, created_at) "

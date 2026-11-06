@@ -19,7 +19,17 @@ def store() -> Store:
     with _lock:
         if _store is None:
             _store = open_store()
+            _store.listeners.append(_broadcast_change)
         return _store
+
+
+def _broadcast_change(quote_id: int, status: str) -> None:
+    """Tell connected Hermes Desktop windows the board changed (no-op when none are connected)."""
+    try:
+        from hermes_cli.plugin_events import broadcast_plugin_event
+        broadcast_plugin_event("docket", "board.updated", {"quote_id": quote_id, "status": status})
+    except Exception:
+        pass
 
 
 def reset_for_tests(s: Store | None = None) -> None:
