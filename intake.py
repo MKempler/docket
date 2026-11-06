@@ -375,9 +375,12 @@ def _validated(book: PriceBook, parsed: dict[str, Any], *, text: str = "", previ
     args = {"items": items, "zip": zip_code, "flags": flags,
             "customer_tier": "member" if member and "member" in book.discounts else "",
             "unpriced": unpriced}
+    questions = [str(q) for q in parsed.get("questions") or [] if str(q).strip()]
+    if previous:   # a revision already knows the customer, address, ZIP and tier: don't ask again
+        questions = [q for q in questions if not re.search(r"\b(name|address|zip|member|customer)\b", q, re.I)]
     return IntakeResult(args=args, customer_name=str(parsed.get("customer_name") or "").strip(),
                         site=str(parsed.get("site_address") or "").strip(), source="model", notes=notes,
-                        questions=[str(q) for q in parsed.get("questions") or [] if str(q).strip()])
+                        questions=questions)
 
 
 def intake(book: PriceBook, text: str, llm: Any = None, *, previous: dict[str, Any] | None = None) -> IntakeResult:

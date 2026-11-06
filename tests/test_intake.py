@@ -151,3 +151,11 @@ def test_excluded_words_turn_a_lookalike_into_needs_price():
     assert codes(r) == {} and r.args["unpriced"] and "tankless" in r.notes[0]
     # an ordinary gas heater swap is untouched
     assert codes(parse_words(BOOK, "Dana 62707 gas water heater swap")) == {"WH50-REPLACE": "1"}
+
+
+def test_revisions_do_not_re_ask_what_the_quote_knows():
+    llm = FakeLLM({"items": [{"code": "TOILET-RESET", "qty": 1}], "flags": ["weekend"],
+                   "questions": ["Is the customer a member?", "What is the customer's name and street address?",
+                                 "Which bathroom is the toilet in?"]})
+    r = intake(BOOK, "make it saturday and add a toilet reset", llm, previous={"items": [], "zip": "62701"})
+    assert r.questions == ["Which bathroom is the toilet in?"] and r.args["zip"] == "62701"
