@@ -178,10 +178,16 @@ def ensure_running(app: AcceptApp, host: str = DEFAULT_HOST, port: int = DEFAULT
     global _server
     with _server_lock:
         if _server is None:
-            try:
-                _server = ThreadingHTTPServer((host, port), make_handler(app))
-            except OSError as exc:  # port taken: often another Hermes process already serving
-                logger.info("Docket accept page not started on %s:%s (%s)", host, port, exc)
+            # Another Hermes (or another profile) may already hold the port: take the next free one, so the
+            # links this process hands out always point at a server that reads THIS process's quotes.
+            for candidate in range(port, port + 20):
+                try:
+                    _server = ThreadingHTTPServer((host, candidate), make_handler(app))
+                    break
+                except OSError:
+                    continue
+            if _server is None:
+                logger.warning("Docket accept page: no free port in %s-%s", port, port + 19)
                 return f"http://{host}:{port}"
             _server.daemon_threads = True
             threading.Thread(target=_server.serve_forever, name="docket-accept", daemon=True).start()

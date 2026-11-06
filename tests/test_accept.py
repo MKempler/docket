@@ -83,3 +83,22 @@ def test_real_http_roundtrip(env):
         assert store.get(qid).status == "accepted"
     finally:
         server.shutdown()
+
+
+def test_ensure_running_moves_to_a_free_port_when_taken(env, monkeypatch):
+    import socket
+    from docket import accept_server
+    store, app, token, events, qid = env
+    blocker = socket.socket()
+    blocker.bind(("127.0.0.1", 0))
+    blocker.listen()
+    taken = blocker.getsockname()[1]
+    monkeypatch.setattr(accept_server, "_server", None)
+    try:
+        url = accept_server.ensure_running(app, "127.0.0.1", taken)
+        assert url != f"http://127.0.0.1:{taken}" and url.startswith("http://127.0.0.1:")
+        assert urllib.request.urlopen(f"{url}/health").read() == b"ok"
+    finally:
+        accept_server._server.shutdown()
+        accept_server._server = None
+        blocker.close()
