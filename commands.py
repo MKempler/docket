@@ -121,6 +121,7 @@ DOCKET_HELP = """Docket
   /quote <job>        price a job from your price book, then send it
   /jobs [status]      your quotes and jobs by status
   /pricebook          show or validate your price book
+  /docket demo        load the demo company (Copperline Plumbing & Drain); 'demo reset' wipes existing quotes first
   /docket serve       start the customer accept page in this session
   /docket link <url>  public base URL for customer links (e.g. your tunnel); 'local' to reset"""
 
@@ -131,6 +132,8 @@ def docket_admin(raw_args: str = "", **kwargs) -> str:
         verb = verb.lower()
         if verb == "serve":
             return f"Customer accept page: {runtime.ensure_accept_server()}  (runs while this Hermes process runs)"
+        if verb == "demo":
+            return run_demo(force=rest.strip().lower() == "reset")
         if verb == "link":
             value = rest.strip()
             if not value:
@@ -150,6 +153,8 @@ def docket_admin(raw_args: str = "", **kwargs) -> str:
 
 def cli_setup(subparser) -> None:
     subs = subparser.add_subparsers(dest="docket_command")
+    demo_p = subs.add_parser("demo", help="Load the demo company with quotes in every state")
+    demo_p.add_argument("--reset", action="store_true", help="Wipe existing Docket quotes first")
     serve = subs.add_parser("serve", help="Run the customer accept page in the foreground")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8787)
@@ -158,8 +163,23 @@ def cli_setup(subparser) -> None:
 
 def cli_main(args) -> None:
     sub = getattr(args, "docket_command", None)
+    if sub == "demo":
+        print(run_demo(force=bool(getattr(args, "reset", False))))
+        return
     if sub == "serve":
         from .accept_server import serve_forever
         serve_forever(runtime.accept_app(), host=args.host, port=args.port)
         return
     print(DOCKET_HELP.replace("/docket", "hermes docket"))
+
+
+def run_demo(*, force: bool = False) -> str:
+    from .demo import DemoError, seed
+    try:
+        made = seed(runtime.store(), runtime.require_book(), runtime.outbox_root(), force=force)
+    except DemoError as exc:
+        return f"Docket: {exc}"
+    return ("Loaded the demo company, Copperline Plumbing & Drain (fictional):\n  " + "\n  ".join(made) +
+            "\n\nTry it (start a new session first so the tools load):\n"
+            "  /quote Dana Henderson, 14 Maple St 62707, swap the 50 gallon gas water heater, permit and haul away\n"
+            "  /jobs\n  /pricebook")
