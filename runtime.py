@@ -48,6 +48,33 @@ def outbox_root() -> Path:
 
 
 INTAKE_TASK: str | None = None     # set by register() when the host supports plugin auxiliary tasks
+OWNER_NOTIFIERS: list = []         # callables(event, record) — Telegram adds one when the gateway connects
+
+
+def notify_owner(event: str, rec: Any) -> None:
+    import logging
+    logging.getLogger(__name__).info("Docket: %s %s (%s)", rec.number, event, rec.customer.get("name"))
+    for fn in list(OWNER_NOTIFIERS):
+        try:
+            fn(event, rec)
+        except Exception:
+            logging.getLogger(__name__).exception("Docket owner notifier failed")
+
+
+def accept_app():
+    from .accept_server import AcceptApp
+    try:
+        from .render import render_pdf
+    except Exception:
+        render_pdf = None
+    return AcceptApp(store, require_book, notify=notify_owner, render_pdf=render_pdf)
+
+
+def ensure_accept_server() -> str:
+    """Start the local accept page if needed; return the base URL customer links should use."""
+    from .accept_server import ensure_running
+    local = ensure_running(accept_app())
+    return store().get_meta("public_base_url") or local
 
 
 class _TaskLLM:

@@ -56,7 +56,8 @@ def _quote(ctx: Any, text: str, surface: str) -> str:
             return owner_text(book, store.get(qid)) + f"\nStatus: {store.get(qid).status}"
         if verb == "send":
             return _send_text(send_quote(store, book, qid, outbox_root=runtime.outbox_root(), actor="owner",
-                                         surface=surface, render_pdf=_pdf_renderer()))
+                                         surface=surface, render_pdf=_pdf_renderer(),
+                                         base_url=runtime.ensure_accept_server()))
         if verb == "discard":
             rec = store.transition(qid, "discarded", actor="owner", surface=surface)
             return f"{rec.number} discarded."
@@ -82,7 +83,7 @@ def _offer(ctx: Any, store, book, d, surface: str, header: str = "") -> str:
         choice = None
     if choice == "send":
         result = send_quote(store, book, rec.id, outbox_root=runtime.outbox_root(), actor="owner", surface=surface,
-                            render_pdf=_pdf_renderer())
+                            render_pdf=_pdf_renderer(), base_url=runtime.ensure_accept_server())
         return text + "\n\n" + _send_text(result)
     if choice == "discard":
         store.transition(rec.id, "discarded", actor="owner", surface=surface)
@@ -114,3 +115,51 @@ def jobs(raw_args: str = "", **kwargs) -> str:
     except Exception as exc:
         logger.exception("/jobs failed")
         return f"Docket hit an error: {type(exc).__name__}: {exc}"
+
+
+DOCKET_HELP = """Docket
+  /quote <job>        price a job from your price book, then send it
+  /jobs [status]      your quotes and jobs by status
+  /pricebook          show or validate your price book
+  /docket serve       start the customer accept page in this session
+  /docket link <url>  public base URL for customer links (e.g. your tunnel); 'local' to reset"""
+
+
+def docket_admin(raw_args: str = "", **kwargs) -> str:
+    try:
+        verb, _, rest = (raw_args or "").strip().partition(" ")
+        verb = verb.lower()
+        if verb == "serve":
+            return f"Customer accept page: {runtime.ensure_accept_server()}  (runs while this Hermes process runs)"
+        if verb == "link":
+            value = rest.strip()
+            if not value:
+                return f"Customer links use: {runtime.ensure_accept_server()}"
+            if value.lower() == "local":
+                runtime.store().set_meta("public_base_url", "")
+                return "Customer links will use the local accept page."
+            if not value.startswith(("https://", "http://")):
+                return "Give a full URL, e.g. https://quotes.example.com"
+            runtime.store().set_meta("public_base_url", value.rstrip("/"))
+            return f"Customer links will use {value.rstrip('/')}. Make sure it forwards to this machine's accept page."
+        return DOCKET_HELP
+    except Exception as exc:
+        logger.exception("/docket failed")
+        return f"Docket hit an error: {type(exc).__name__}: {exc}"
+
+
+def cli_setup(subparser) -> None:
+    subs = subparser.add_subparsers(dest="docket_command")
+    serve = subs.add_parser("serve", help="Run the customer accept page in the foreground")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8787)
+    subparser.set_defaults(func=cli_main)
+
+
+def cli_main(args) -> None:
+    sub = getattr(args, "docket_command", None)
+    if sub == "serve":
+        from .accept_server import serve_forever
+        serve_forever(runtime.accept_app(), host=args.host, port=args.port)
+        return
+    print(DOCKET_HELP.replace("/docket", "hermes docket"))

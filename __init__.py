@@ -127,7 +127,8 @@ def _send_tool(args: dict, **kwargs) -> str:
         from .commands import _pdf_renderer
         from .service import parse_quote_id, send_quote
         result = send_quote(runtime.store(), runtime.require_book(), parse_quote_id(str((args or {}).get("quote_id"))),
-                            outbox_root=runtime.outbox_root(), actor="agent", surface="tool", render_pdf=_pdf_renderer())
+                            outbox_root=runtime.outbox_root(), actor="agent", surface="tool", render_pdf=_pdf_renderer(),
+                            base_url=runtime.ensure_accept_server())
         return json.dumps(result)
     except Exception as exc:
         logger.exception("docket_send_quote failed")
@@ -190,7 +191,7 @@ def _docket_command(raw_args: str = "", **kwargs) -> str:
 
 def register(ctx):
     from . import runtime
-    from .commands import jobs, make_quote_command
+    from .commands import cli_main, cli_setup, docket_admin, jobs, make_quote_command
 
     # Docket's own model slot: job intake only maps words to price-book codes, so thinking is switched off
     # (reasoning models otherwise spend minutes before answering) and the owner can pin a faster model for it.
@@ -217,4 +218,7 @@ def register(ctx):
     ctx.register_command("jobs", jobs, description="Your Docket quotes and jobs by status", args_hint="[status]")
     ctx.register_command("pricebook", _pricebook_command, description="Show or validate your Docket price book",
                          args_hint="[show|validate]")
-    ctx.register_command("docket", _docket_command, description="Docket help")
+    ctx.register_command("docket", docket_admin, description="Docket help, accept page and link settings",
+                         args_hint="[serve|link <url>]")
+    ctx.register_cli_command(name="docket", help="Docket: quotes for trades businesses", setup_fn=cli_setup,
+                             handler_fn=cli_main, description="Run Docket's customer accept page and demo tools")
