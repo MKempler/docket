@@ -10,5 +10,8 @@ tags: [business, trades, quotes, telegram]
 requires_hermes: ">=0.22.7"
 provides_tools:
   - docket_price_preview
+  - docket_quote
+  - docket_send_quote
+  - docket_jobs
 provides_hooks:
   - pre_tool_call
