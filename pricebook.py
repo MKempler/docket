@@ -23,6 +23,7 @@ class Material:
     cost: Decimal
     markup: Decimal
     aliases: tuple[str, ...] = ()
+    exclude: tuple[str, ...] = ()      # words that mean "not this item" (e.g. tankless for a gas heater swap)
 
     @property
     def price(self) -> Decimal:
@@ -38,6 +39,7 @@ class Fee:
     amount: Decimal
     aliases: tuple[str, ...] = ()
     limit_to: tuple[str, ...] = ()     # qty can't exceed the total qty of these items in the job
+    exclude: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -54,6 +56,7 @@ class Assembly:
     labor_hours: Decimal
     materials: tuple[Component, ...]
     aliases: tuple[str, ...] = ()
+    exclude: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -101,6 +104,14 @@ class PriceBook:
                 for phrase in (entry.name, *entry.aliases):
                     index.setdefault(" ".join(phrase.lower().split()), code)
         return index
+
+    def excluded_by(self, code: str, text: str) -> str:
+        """The exclude word in `text` that rules this item out, or ''."""
+        found = self.lookup(code)
+        if not found or found[1] is None:
+            return ""
+        low = " " + " ".join(text.lower().replace("-", " ").split()) + " "
+        return next((w for w in getattr(found[1], "exclude", ()) if f" {w.replace('-', ' ')} " in low), "")
 
     def lookup(self, code: str) -> tuple[str, Any] | None:
         c = (code or "").strip().upper()
@@ -172,6 +183,15 @@ class _Reader:
             self.err(path, f"must be {'greater than' if not allow_zero else 'at least'} 0, got {raw!r}", node, key)
             return None
         return value
+
+    def words(self, node: Any, path: str, key: str) -> tuple[str, ...]:
+        raw = node.get(key) if isinstance(node, dict) else None
+        if raw is None:
+            return ()
+        if not isinstance(raw, list) or not all(isinstance(a, str) and a.strip() for a in raw):
+            self.err(f"{path}.{key}", "must be a list of words or phrases", node, key)
+            return ()
+        return tuple(" ".join(a.lower().split()) for a in raw)
 
     def aliases(self, node: Any, path: str) -> tuple[str, ...]:
         raw = node.get("aliases") if isinstance(node, dict) else None
@@ -293,7 +313,7 @@ def parse_pricebook(text: str, source: str = "<text>") -> tuple[PriceBook | None
         markup = r.money(node, "markup", path, required=False) or Decimal(0)
         name, unit = r.text(node, "name", path), r.text(node, "unit", path)
         if cost is not None and name and unit:
-            materials[c] = Material(c, name, unit, cost, markup, r.aliases(node, path))
+            materials[c] = Material(c, name, unit, cost, markup, r.aliases(node, path), r.words(node, path, "exclude"))
 
     fees: dict[str, Fee] = {}
     fee_node = data.get("fees") or {}
@@ -303,7 +323,8 @@ def parse_pricebook(text: str, source: str = "<text>") -> tuple[PriceBook | None
         name = r.text(node, "name", path)
         if amount is not None and name:
             limit = tuple(str(x).strip().upper() for x in ((node or {}).get("limit_to") or []))
-            fees[c] = Fee(c, name, str((node or {}).get("unit") or "each"), amount, r.aliases(node, path), limit)
+            fees[c] = Fee(c, name, str((node or {}).get("unit") or "each"), amount, r.aliases(node, path), limit,
+                          r.words(node, path, "exclude"))
 
     assemblies: dict[str, Assembly] = {}
     asm_node = data.get("assemblies") or {}
@@ -323,7 +344,7 @@ def parse_pricebook(text: str, source: str = "<text>") -> tuple[PriceBook | None
             if qty is not None:
                 comps.append(Component(mcode, qty))
         if hours is not None and name and unit:
-            assemblies[c] = Assembly(c, name, unit, hours, tuple(comps), r.aliases(node, path))
+            assemblies[c] = Assembly(c, name, unit, hours, tuple(comps), r.aliases(node, path), r.words(node, path, "exclude"))
 
     clashes = (set(materials) & set(fees)) | (set(materials) & set(assemblies)) | (set(fees) & set(assemblies))
     for code in sorted(clashes):

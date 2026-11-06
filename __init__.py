@@ -45,7 +45,7 @@ QUOTE_SCHEMA = {
     "name": "docket_quote",
     "description": (
         "Create a saved, numbered quote (status draft) from the owner's description of a job: customer name, address "
-        "or ZIP, and the work. Docket maps the words to the owner's price book and prices every line in code. "
+        "or ZIP, and the work. Call it ONCE per job and pass the owner's words as they wrote them. Docket maps the words to the owner's price book and prices every line in code. "
         "To change an existing quote pass quote_id and describe the change. Does NOT send anything; the owner sends "
         "with the ✅ button, /quote send, or docket_send_quote. " + NEVER_PRICE),
     "parameters": {
@@ -103,12 +103,18 @@ def _make_quote_tool(ctx):
             from . import runtime
             from .service import draft_from_words, owner_text, parse_quote_id, revise_from_words
             store, book = runtime.store(), runtime.require_book()
-            words = str((args or {}).get("description") or "")
+            words = str((args or {}).get("description") or "").strip()
+            owner_words = str(kwargs.get("user_task") or "").strip()[:2000]
+            if owner_words and owner_words.lower() not in words.lower():
+                # The agent's description can drop details; give intake the owner's own words too.
+                words = f"{words}\n\nThe owner's own message: {owner_words}" if words else owner_words
             if (args or {}).get("quote_id"):
                 d = revise_from_words(store, book, parse_quote_id(args["quote_id"]), words, llm=runtime.llm(ctx),
                                       actor="agent", surface="tool")
             else:
-                d = draft_from_words(store, book, words, llm=runtime.llm(ctx), actor="agent", surface="tool")
+                session = str(kwargs.get("session_id") or "")
+                d = draft_from_words(store, book, words, llm=runtime.llm(ctx), actor="agent", surface="tool",
+                                     dedupe_key=f"{session}:{owner_words[:200]}" if session else "")
             rec = d.record
             surface = ""
             try:
@@ -118,9 +124,10 @@ def _make_quote_tool(ctx):
             if surface == "desktop":
                 return json.dumps({"ok": True, "quote_id": rec.number, "version": rec.version, "status": rec.status,
                                    "complete": rec.complete, "total": rec.total, "notes": d.intake.notes,
-                                   "next": (f'Show the quote by writing this exact line as its own paragraph: '
-                                            f'::docket-quote{{id="{rec.number}"}}  It renders the quote card with '
-                                            "a Send button. Then add one short sentence; do not list the prices.")})
+                                   "next": (f"The quote is saved. Do not call any other tool to show it. In your reply "
+                                            f"text, write this exact line as its own paragraph: "
+                                            f'::docket-quote{{id="{rec.number}"}}  (Desktop turns it into the quote card '
+                                            "with a Send button). Then add one short sentence; do not list the prices.")})
             if runtime.push_quote_card(rec, surface):
                 return json.dumps({"ok": True, "quote_id": rec.number, "version": rec.version, "status": rec.status,
                                    "card_sent": True, "complete": rec.complete, "notes": d.intake.notes,

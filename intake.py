@@ -107,7 +107,10 @@ def parse_words(book: PriceBook, text: str) -> IntakeResult:
         rest = " ".join(rest.split()).strip(" .-")
         if not rest:
             continue
-        found = _find_items(rest, aliases, codes)
+        found = [c for c in _find_items(rest, aliases, codes) if not book.excluded_by(c, rest)]
+        if not found and any(book.excluded_by(c, rest) for c in _find_items(rest, aliases, codes)):
+            unpriced.append(rest)                       # e.g. "tankless water heater": not the gas heater swap
+            continue
         if found:
             for code in found:
                 items.append({"code": code, "qty": _qty_for(book, code, rest, single=len(found) == 1)})
@@ -325,6 +328,11 @@ def _validated(book: PriceBook, parsed: dict[str, Any], *, text: str = "", previ
         kept = []
         for it in items:
             kind = book.lookup(it["code"])[0]
+            word = book.excluded_by(it["code"], text)
+            if word:
+                notes.append(f"'{word}' is not covered by {it['code']}; listed as needs price")
+                unpriced.append(f"{word} job (not {it['code']})")
+                continue
             if it["code"] == "LABOR" and "LABOR" not in prev_codes and not HOURS_RE.search(text):
                 notes.append("Dropped hourly labor the job did not ask for")
                 continue

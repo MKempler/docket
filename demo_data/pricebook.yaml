@@ -71,12 +71,14 @@ fees:                     # flat amounts, not taxed
 assemblies:               # labor hours and materials per unit of the assembly
   WH50-REPLACE:
     name: Replace 50-gal gas water heater
+    exclude: ["tankless", "electric", "heat pump", "hybrid"]     # different jobs: these need their own price
     aliases: ["water heater", "hot water heater", "gallon heater", "gal heater", "heater swap", "replace heater"]
     unit: each
     labor_hours: "3.0"
     materials: [{ code: WH50G, qty: "1" }, { code: WHKIT, qty: "1" }, { code: EXPTANK, qty: "1" }]
   TOILET-REPLACE:
     name: Replace toilet
+    exclude: ["wall hung", "bidet", "smart toilet"]
     aliases: ["replace toilet", "new toilet", "toilet replacement"]
     unit: each
     labor_hours: "1.5"

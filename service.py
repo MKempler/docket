@@ -40,10 +40,26 @@ def parse_quote_id(text: str) -> int:
 
 
 def draft_from_words(store: Store, book: PriceBook, words: str, *, llm: Any = None, actor: str = "owner",
-                     surface: str = "") -> Drafted:
+                     surface: str = "", dedupe_key: str = "") -> Drafted:
     result = intake(book, words, llm)
-    if not result.args["items"] and not result.args["unpriced"]:
-        raise ServiceError("I couldn't find any work in that. Name the job, e.g. 'water heater' or a price-book code.")
+    if not result.args["items"]:
+        missing = "; ".join(result.args["unpriced"][:5])
+        raise ServiceError("No work from the price book was found, so no quote was made."
+                           + (f" Not in the price book: {missing}." if missing else "")
+                           + " Name the job (e.g. 'water heater swap') or add it to the price book.")
+    if dedupe_key:                                 # same chat asked for the same job again: reuse the draft
+        import hashlib
+        import json as _json
+        digest = hashlib.sha256(_json.dumps(result.args, sort_keys=True).encode()).hexdigest()[:16]
+        prev = store.get_meta(f"dedupe:{dedupe_key}")
+        if prev and prev.split(":")[0] == digest:
+            try:
+                rec = store.get(int(prev.split(":")[1]))
+                if rec.status == "draft":
+                    result.notes.append(f"Same job as {rec.number}; reused that draft instead of making a duplicate.")
+                    return Drafted(rec, price(book, spec_from_args(rec.spec)), result)
+            except (StoreError, ValueError):
+                pass
     name = result.customer_name or "New customer"
     customer = store.upsert_customer(name, zip=result.args.get("zip", ""), address=result.site)
     if customer.get("tier") and not result.args.get("customer_tier"):
@@ -51,6 +67,8 @@ def draft_from_words(store: Store, book: PriceBook, words: str, *, llm: Any = No
     quote = price(book, spec_from_args(result.args))
     rec = store.create_quote(customer["id"], result.site, result.args.get("zip", ""), result.args, quote.to_dict(),
                              actor=actor, surface=surface)
+    if dedupe_key:
+        store.set_meta(f"dedupe:{dedupe_key}", f"{digest}:{rec.id}")
     return Drafted(rec, quote, result)
 
 

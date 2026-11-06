@@ -141,3 +141,13 @@ def test_parts_only_keeps_the_part():
     llm = FakeLLM({"items": [{"code": "TOILET", "qty": 1}], "zip": "62704"})
     r = intake(BOOK, "Vic Lane 62704 drop off a new toilet, parts only", llm)
     assert codes(r) == {"TOILET": "1"}
+
+
+def test_excluded_words_turn_a_lookalike_into_needs_price():
+    r = parse_words(BOOK, "Nate Cole 62702 wants a tankless water heater installed")
+    assert codes(r) == {} and r.args["unpriced"] == ["wants a tankless water heater installed"]
+    llm = FakeLLM({"items": [{"code": "WH50-REPLACE", "qty": 1}], "zip": "62702"})
+    r = intake(BOOK, "Nate Cole 62702 wants a tankless water heater installed", llm)
+    assert codes(r) == {} and r.args["unpriced"] and "tankless" in r.notes[0]
+    # an ordinary gas heater swap is untouched
+    assert codes(parse_words(BOOK, "Dana 62707 gas water heater swap")) == {"WH50-REPLACE": "1"}

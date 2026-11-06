@@ -57,7 +57,7 @@ def test_revision_voids_old_link(store, tmp_path):
 
 
 def test_needs_price_blocks_send_and_records_nothing(store, tmp_path):
-    d = svc.draft_from_words(store, BOOK, "Pat Jones, 62701, install a tankless heater in the attic")
+    d = svc.draft_from_words(store, BOOK, "Pat Jones, 62701, install a tankless heater in the attic, clogged drain")
     with pytest.raises(svc.ServiceError, match="need a price"):
         svc.send_quote(store, BOOK, d.record.id, outbox_root=tmp_path, actor="owner")
     assert not store.has_send(d.record.id, 1, "outbox") and list(tmp_path.iterdir()) == []
@@ -82,3 +82,16 @@ def test_parse_quote_id():
     assert svc.parse_quote_id("Q-1042") == svc.parse_quote_id("q1042") == svc.parse_quote_id("1042") == 1042
     with pytest.raises(svc.ServiceError):
         svc.parse_quote_id("henderson")
+
+
+def test_no_priced_work_means_no_quote(store):
+    with pytest.raises(svc.ServiceError, match="no quote was made"):
+        svc.draft_from_words(store, BOOK, "Nate Cole 62702 wants a tankless water heater installed")
+    assert store.list() == []
+
+
+def test_same_job_twice_in_one_chat_reuses_the_draft(store):
+    a = svc.draft_from_words(store, BOOK, WORDS, dedupe_key="s1:x")
+    b = svc.draft_from_words(store, BOOK, WORDS, dedupe_key="s1:x")
+    c = svc.draft_from_words(store, BOOK, WORDS, dedupe_key="s2:x")
+    assert a.record.id == b.record.id != c.record.id and len(store.list()) == 2
