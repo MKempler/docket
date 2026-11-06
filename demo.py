@@ -40,8 +40,11 @@ def has_data(store: Store) -> bool:
 
 def reset(store: Store) -> None:
     with store.lock, store.conn:
-        for table in TABLES:
-            store.conn.execute(f"DELETE FROM {table}")
+        for table in ("invoices",) + TABLES:
+            try:
+                store.conn.execute(f"DELETE FROM {table}")
+            except Exception:       # invoices table exists only after the first close-out
+                pass
         store.conn.execute("DELETE FROM meta WHERE key IN ('demo_seeded')")
 
 

@@ -82,7 +82,8 @@ function Card({ item, currency, selected, onOpen }) {
   const badges = []
   if (item.opened) badges.push(jsx(Pill, { tone: 'accent', children: 'opened' }, 'o'))
   if (!item.complete) badges.push(jsx(Pill, { tone: 'warn', children: 'needs price' }, 'n'))
-  if (item.scheduled_for) badges.push(jsx(Pill, { tone: 'accent', children: day(item.scheduled_for) }, 's'))
+  if (item.scheduled_for && !item.invoiced) badges.push(jsx(Pill, { tone: 'accent', children: day(item.scheduled_for) }, 's'))
+  if (item.invoiced) badges.push(jsx(Pill, { tone: 'accent', children: 'invoiced' }, 'i'))
   return jsxs('button', {
     type: 'button',
     onClick: () => onOpen(item.id),
@@ -231,7 +232,7 @@ function Detail({ id, currency, onClose }) {
       }, act.id)
     }
     return jsx(ActionButton, {
-      label: act.label, primary: act.id === 'send' || act.id === 'done', disabled: busy,
+      label: act.label, primary: ['send', 'done', 'invoice', 'paid'].includes(act.id), disabled: busy,
       onClick: () => run(act.id)
     }, act.id)
   })

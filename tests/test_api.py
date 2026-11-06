@@ -22,6 +22,7 @@ def client(tmp_path, monkeypatch):
     runtime.reset_for_tests(store)
     monkeypatch.setattr(runtime, "outbox_root", lambda: tmp_path)
     monkeypatch.setattr(runtime, "ensure_accept_server", lambda: "http://127.0.0.1:8787")
+    monkeypatch.setattr(runtime, "CTX", None)
     demo.seed(store, runtime.require_book(), tmp_path)
     app = FastAPI()
     app.include_router(plugin_api.router, prefix="/api/plugins/docket")
@@ -68,3 +69,16 @@ def test_changes_notify_listeners(client):
     q = next(q for q in store.list() if q.status == "accepted")
     c.post(f"/api/plugins/docket/quote/{q.id}/book", json={"date": "2026-11-10"})
     assert seen == ["scheduled"]
+
+
+def test_invoice_and_paid_actions(client):
+    c, store = client
+    q = next(q for q in store.list() if q.status == "scheduled")
+    assert c.post(f"/api/plugins/docket/quote/{q.id}/in_progress", json={}).status_code == 200
+    assert c.post(f"/api/plugins/docket/quote/{q.id}/done", json={}).status_code == 200
+    assert [a["id"] for a in c.get(f"/api/plugins/docket/quote/{q.id}").json()["actions"]] == ["invoice"]
+    r = c.post(f"/api/plugins/docket/quote/{q.id}/invoice", json={})
+    assert r.status_code == 200 and r.json()["message"].startswith("INV-1001 created")
+    done_col = next(col for col in c.get("/api/plugins/docket/board").json()["columns"] if col["key"] == "done")
+    assert any(i["id"] == q.id and i["invoiced"] for i in done_col["items"])
+    assert c.post(f"/api/plugins/docket/quote/{q.id}/paid", json={}).json()["message"] == "INV-1001 marked paid"

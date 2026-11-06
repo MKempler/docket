@@ -61,7 +61,7 @@ def draft_from_words(store: Store, book: PriceBook, words: str, *, llm: Any = No
             except (StoreError, ValueError):
                 pass
     name = result.customer_name or "New customer"
-    customer = store.upsert_customer(name, zip=result.args.get("zip", ""), address=result.site)
+    customer = store.upsert_customer(name, zip=result.args.get("zip", ""), address=result.site, email=result.email)
     if customer.get("tier") and not result.args.get("customer_tier"):
         result.args["customer_tier"] = customer["tier"]
     quote = price(book, spec_from_args(result.args))

@@ -66,6 +66,17 @@ SEND_SCHEMA = {
                    "required": ["quote_id"]},
 }
 
+CLOSE_SCHEMA = {
+    "name": "docket_close_job",
+    "description": ("Finish a booked job and create its invoice from the quote (plus any extra work the owner "
+                    "describes, priced from the price book). Hands the invoice to the owner's invoicing plugin as a "
+                    "draft when one is installed, otherwise saves an invoice PDF. Never takes payment."),
+    "parameters": {"type": "object", "properties": {
+        "quote_id": {"type": "string", "description": "e.g. Q-1004"},
+        "extra_work": {"type": "string", "description": "Optional extra work done on site, in the owner's words"}},
+        "required": ["quote_id"]},
+}
+
 JOBS_SCHEMA = {
     "name": "docket_jobs",
     "description": "List the owner's quotes and jobs grouped by status (draft, sent, accepted, scheduled, ...).",
@@ -157,6 +168,23 @@ def _send_tool(args: dict, **kwargs) -> str:
     except Exception as exc:
         logger.exception("docket_send_quote failed")
         return _err(exc)
+
+
+def _make_close_tool(ctx):
+    def handler(args: dict, **kwargs) -> str:
+        try:
+            from . import runtime
+            from .commands import _invoice_text
+            from .service import parse_quote_id
+            inv = runtime.close_out(parse_quote_id(str((args or {}).get("quote_id"))),
+                                    extra_words=str((args or {}).get("extra_work") or ""), actor="agent",
+                                    surface="tool", llm=runtime.llm(ctx))
+            return json.dumps({"ok": True, "invoice": inv["number"], "total": inv["total"], "handoff": inv["handoff"],
+                               "text": _invoice_text(inv)})
+        except Exception as exc:
+            logger.exception("docket_close_job failed")
+            return _err(exc)
+    return handler
 
 
 def _jobs_tool(args: dict, **kwargs) -> str:
@@ -322,6 +350,7 @@ def _docket_command(raw_args: str = "", **kwargs) -> str:
 def register(ctx):
     from . import runtime
     from .commands import cli_main, cli_setup, docket_admin, jobs, make_quote_command
+    runtime.CTX = ctx
 
     # Docket's own model slot: job intake only maps words to price-book codes, so thinking is switched off
     # (reasoning models otherwise spend minutes before answering) and the owner can pin a faster model for it.
@@ -340,6 +369,8 @@ def register(ctx):
                       description="Create or revise a quote", emoji="🧾")
     ctx.register_tool(name="docket_send_quote", toolset="docket", schema=SEND_SCHEMA, handler=_send_tool,
                       description="Send a quote to the customer", emoji="📨")
+    ctx.register_tool(name="docket_close_job", toolset="docket", schema=CLOSE_SCHEMA, handler=_make_close_tool(ctx),
+                      description="Finish a job and make its invoice", emoji="🧾")
     ctx.register_tool(name="docket_jobs", toolset="docket", schema=JOBS_SCHEMA, handler=_jobs_tool,
                       description="Quotes and jobs by status", emoji="📋")
     for name, schema in REPORT_SCHEMAS.items():

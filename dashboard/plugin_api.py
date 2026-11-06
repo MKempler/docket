@@ -19,7 +19,7 @@ router = APIRouter()
 
 COLUMNS = [("draft", "Draft"), ("sent", "Sent"), ("accepted", "Accepted"), ("scheduled", "Booked"),
            ("in_progress", "In progress"), ("done", "Done")]
-CLOSED = {"declined", "expired", "discarded", "cancelled", "invoiced", "paid"}
+CLOSED = {"declined", "expired", "discarded", "cancelled", "paid"}
 MOVES = {"in_progress": "Start job", "done": "Mark done", "cancelled": "Cancel job"}
 DONE_TEXT = {"in_progress": "started", "done": "marked done", "cancelled": "cancelled"}
 
@@ -40,7 +40,8 @@ def _module(name: str):
 def _card(rec, store) -> dict[str, Any]:
     opened = rec.status == "viewed"
     return {"id": rec.id, "number": rec.number, "version": rec.version, "status": rec.status,
-            "column": "sent" if rec.status in {"sent", "viewed"} else rec.status, "opened": opened,
+            "column": ("sent" if rec.status in {"sent", "viewed"} else "done" if rec.status == "invoiced"
+                       else rec.status), "opened": opened, "invoiced": rec.status == "invoiced",
             "customer": rec.customer["name"], "site": rec.site, "zip": rec.zip, "total": rec.total,
             "complete": rec.complete, "scheduled_for": rec.scheduled_for, "updated_at": rec.updated_at,
             "lines": len(rec.quote.get("lines", []))}
@@ -96,6 +97,10 @@ def _actions(rec) -> list[dict[str, str]]:
         acts += [{"id": "book", "label": "Reschedule"}, {"id": "in_progress", "label": MOVES["in_progress"]}]
     if rec.status == "in_progress":
         acts.append({"id": "done", "label": MOVES["done"]})
+    if rec.status == "done":
+        acts.append({"id": "invoice", "label": "Create invoice"})
+    if rec.status == "invoiced":
+        acts.append({"id": "paid", "label": "Mark paid"})
     return acts
 
 
@@ -117,6 +122,13 @@ def act(quote_id: int, action: str, body: dict | None = None) -> dict[str, Any]:
             day = date.fromisoformat(str(body.get("date", "")))
             store.transition(quote_id, "scheduled", actor="owner", surface="desktop", scheduled_for=day.isoformat())
             return {"ok": True, "message": f"Q-{quote_id} booked for {day:%a %b} {day.day}"}
+        if action == "invoice":
+            inv = runtime.close_out(quote_id, extra_words=str(body.get("extra") or ""), surface="desktop")
+            where = "handed to Obol" if inv["handoff"] == "obol" else "PDF saved"
+            return {"ok": True, "message": f"{inv['number']} created ({where})" + (f". {inv['note']}" if inv.get("note") else "")}
+        if action == "paid":
+            inv = _module("invoices").mark_paid(store, quote_id, surface="desktop")
+            return {"ok": True, "message": f"{inv['number']} marked paid"}
         if action in MOVES:
             rec = store.transition(quote_id, action, actor="owner", surface="desktop")
             return {"ok": True, "message": f"{rec.number} {rec.customer['name']} {DONE_TEXT[action]}"}

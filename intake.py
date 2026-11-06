@@ -20,6 +20,7 @@ from typing import Any
 from .pricebook import UNITS_WHOLE, PriceBook
 
 ZIP_RE = re.compile(r"\b(\d{5})(?:-\d{4})?\b")
+EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 FLAG_PATTERNS = {
     "emergency": re.compile(r"\b(emergency|urgent|asap|right away|flooding)\b", re.I),
     "weekend": re.compile(r"\b(weekend|saturday|sunday|sat|sun)\b", re.I),
@@ -35,6 +36,7 @@ LEADING_COUNT_RE = re.compile(r"^\s*(\d{1,2})\s+(?!(?:gal|gallon|gallons|in|inch
 WORD_NUMBERS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
 LEADING_WORD_RE = re.compile(r"^\s*(one|two|three|four|five|six)\s+", re.I)
 SPLIT_RE = re.compile(r"[,;:\n!?]+|(?<!\d)\.(?!\d)")
+LABOR_HOURS_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\b(?:\s+(?:of\s+)?(?:labor|labour|work|extra))?", re.I)
 NAME_RE = re.compile(r"^[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*){0,3}$")
 CAP_NAME_RE = re.compile(r"\b([A-Z][a-z'][A-Za-z'-]*(?:\s+(?:[A-Z]\.|[A-Z][a-z'][A-Za-z'-]*)){1,2})\b")
 NOT_NAMES = {"hey", "hi", "hello", "so", "ok", "okay", "she", "he", "they", "her", "his", "the", "needs", "need", "also",
@@ -43,6 +45,7 @@ NOT_NAMES = {"hey", "hi", "hello", "so", "ok", "okay", "she", "he", "they", "her
 # A leftover phrase becomes a needs-price line only if it names work (a verb) AND something specific (a noun
 # that is not filler). "needs a swap" or "she can only do saturday" are dropped; "install a tankless heater" stays.
 WORK_WORDS = {"install", "replace", "repair", "fix", "swap", "add", "remove", "move", "reroute", "run", "mount",
+              "tile", "retile", "re-tile", "re-til", "paint", "drywall", "demo", "haul", "dig", "trench", "pour",
               "hook", "connect", "upgrade", "build", "patch", "leak", "clog", "unclog", "snake", "jet", "dig",
               "relocate", "convert", "cap", "seal", "rebuild", "supply", "put"}
 FILLER = {"a", "an", "the", "it", "its", "it's", "one", "old", "new", "some", "this", "that", "them", "her", "his",
@@ -58,6 +61,7 @@ class IntakeResult:
     customer_name: str = ""
     site: str = ""
     source: str = "parser"           # "model" or "parser"
+    email: str = ""
     notes: list[str] = field(default_factory=list)
     questions: list[str] = field(default_factory=list)
 
@@ -78,6 +82,8 @@ def _tokens(text: str) -> list[str]:
 
 def parse_words(book: PriceBook, text: str) -> IntakeResult:
     raw = (text or "").strip()
+    email_m = EMAIL_RE.search(raw)
+    raw = EMAIL_RE.sub(" ", raw)
     zip_match = ZIP_RE.search(raw)
     zip_code = zip_match.group(1) if zip_match else ""
     flags = [f for f, pat in FLAG_PATTERNS.items() if pat.search(raw)]
@@ -107,6 +113,10 @@ def parse_words(book: PriceBook, text: str) -> IntakeResult:
         rest = " ".join(rest.split()).strip(" .-")
         if not rest:
             continue
+        hours = LABOR_HOURS_RE.search(rest)
+        if hours and not _find_items(rest, aliases, set(book.assemblies)):
+            items.append({"code": "LABOR", "qty": hours.group(1)})      # "plus 2 hours labor", "1.5 hrs extra"
+            continue
         found = [c for c in _find_items(rest, aliases, codes) if not book.excluded_by(c, rest)]
         if not found and any(book.excluded_by(c, rest) for c in _find_items(rest, aliases, codes)):
             unpriced.append(rest)                       # e.g. "tankless water heater": not the gas heater swap
@@ -127,7 +137,8 @@ def parse_words(book: PriceBook, text: str) -> IntakeResult:
     notes = [] if items else ["No price-book items recognised; add codes or aliases."]
     if ignored:
         notes.append("Not used: " + "; ".join(f"'{x}'" for x in ignored))
-    return IntakeResult(args=args, customer_name=customer, site=site, source="parser", notes=notes)
+    return IntakeResult(args=args, customer_name=customer, site=site, source="parser", notes=notes,
+                        email=email_m.group(0) if email_m else "")
 
 
 def _find_name(raw: str, site: str) -> str:
@@ -378,9 +389,10 @@ def _validated(book: PriceBook, parsed: dict[str, Any], *, text: str = "", previ
     questions = [str(q) for q in parsed.get("questions") or [] if str(q).strip()]
     if previous:   # a revision already knows the customer, address, ZIP and tier: don't ask again
         questions = [q for q in questions if not re.search(r"\b(name|address|zip|member|customer)\b", q, re.I)]
+    em = EMAIL_RE.search(text or "")
     return IntakeResult(args=args, customer_name=str(parsed.get("customer_name") or "").strip(),
                         site=str(parsed.get("site_address") or "").strip(), source="model", notes=notes,
-                        questions=questions)
+                        questions=questions, email=em.group(0) if em else "")
 
 
 def intake(book: PriceBook, text: str, llm: Any = None, *, previous: dict[str, Any] | None = None) -> IntakeResult:

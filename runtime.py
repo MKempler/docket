@@ -57,6 +57,7 @@ def outbox_root() -> Path:
     return root
 
 
+CTX: Any = None                    # the PluginContext, for dispatch_tool / has_plugin
 INTAKE_TASK: str | None = None     # set by register() when the host supports plugin auxiliary tasks
 OWNER_NOTIFIERS: list = []         # callables(event, record) — Telegram adds one when the gateway connects
 
@@ -136,3 +137,30 @@ def push_quote_card(rec: Any, surface: str) -> bool:
     if surface not in CHANNELS or not CHANNELS[surface].live or not get_owner(store(), surface):
         return False
     return bool(push(store(), quote_card(require_book(), rec), platforms=(surface,)))
+
+
+def invoice_handoff():
+    """obol_create_invoice through Hermes's dispatch_tool when Obol is installed, else None (local invoice)."""
+    ctx = CTX
+    try:
+        if ctx is None or not ctx.has_plugin("obol"):
+            return None
+    except Exception:
+        return None
+
+    def send(invoice: dict) -> str:
+        import json as _json
+        from .invoices import obol_payload
+        raw = ctx.dispatch_tool("obol_create_invoice", obol_payload(invoice))
+        data = _json.loads(raw) if isinstance(raw, str) else raw
+        if not isinstance(data, dict) or data.get("error") or data.get("ok") is False:
+            raise RuntimeError(str((data or {}).get("error") or data)[:200])
+        return str(data.get("invoice_id") or data.get("id") or data.get("number") or "")
+    return send
+
+
+def close_out(quote_id: int, *, extra_words: str = "", actor: str = "owner", surface: str = "", llm: Any = None):
+    from .invoices import close_out as _close
+    from .render import render_invoice_pdf
+    return _close(store(), require_book(), quote_id, outbox_root=outbox_root(), extra_words=extra_words, llm=llm,
+                  handoff=invoice_handoff(), actor=actor, surface=surface, render=render_invoice_pdf)

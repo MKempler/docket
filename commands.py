@@ -21,6 +21,8 @@ QUOTE_USAGE = """Docket quotes
   /quote send Q-1001                                     send it to the customer
   /quote discard Q-1001
   /quote book Q-1001 2026-11-12                          schedule an accepted job
+  /quote done Q-1001 [extra work]                        finish the job and make its invoice
+  /quote paid Q-1001                                     mark the invoice paid
 Example: /quote Dana Henderson, 14 Maple St 62707, swap the 50 gallon gas water heater, permit and haul away"""
 
 ACTIONS = [
@@ -60,6 +62,14 @@ def _quote(ctx: Any, text: str, surface: str) -> str:
         rec = store.transition(parse_quote_id(number), "scheduled", actor="owner", surface=surface,
                                scheduled_for=day.isoformat())
         return f"📅 {rec.number} {rec.customer['name']} booked for {day:%A %b} {day.day}."
+    if verb in {"done", "paid"}:
+        number, _, extra = rest.strip().partition(" ")
+        qid = parse_quote_id(number)
+        if verb == "paid":
+            from .invoices import mark_paid
+            inv = mark_paid(store, qid, surface=surface)
+            return f"💵 {inv['number']} ({inv['quote_number']}) marked paid."
+        return _invoice_text(runtime.close_out(qid, extra_words=extra, surface=surface, llm=runtime.llm(ctx)))
     if verb in {"show", "send", "discard", "revise"}:
         number, _, change = rest.strip().partition(" ")
         qid = parse_quote_id(number)
@@ -216,3 +226,12 @@ def setup_owner(kwargs: dict) -> str:
               thread_id=str(getattr(source, "thread_id", "") or ""))
     return (f"Docket is set up on {platform.title()}. Quote cards and customer updates will come here, and only you "
             f"can press their buttons. Try: /quote Dana Henderson, 14 Maple St 62707, water heater, permit")
+
+
+def _invoice_text(inv: dict) -> str:
+    if inv.get("already"):
+        return f"{inv['quote_number']} already has invoice {inv['number']} ({fmt_money(Decimal(inv['total']))}, {inv['status']})."
+    where = ("handed to your invoicing plugin (Obol) as a draft" if inv["handoff"] == "obol"
+             else f"saved to {inv['pdf']}" if inv.get("pdf") else "saved")
+    out = f"🧾 {inv['number']} for {inv['quote_number']} {inv['customer']['name']}: {fmt_money(Decimal(inv['total']))}, due {inv['due']}. Invoice {where}."
+    return out + (f"\n{inv['note']}" if inv.get("note") else "")

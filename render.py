@@ -34,45 +34,37 @@ def _quote_date(rec: QuoteRecord) -> date:
         return date.today()
 
 
-def render_pdf(book: PriceBook, rec: QuoteRecord, accept_url: str) -> bytes:
-    from reportlab.graphics import renderPDF
-    from reportlab.graphics.barcode import qr
-    from reportlab.graphics.shapes import Drawing
+def _draw_document(c, book: PriceBook, doc: dict, *, title: str, ref_lines: list[str], party_label: str,
+                   party_lines: list[str]) -> float:
+    """Shared quote/invoice layout: header, party, line table and totals. Returns the y below the totals."""
     from reportlab.lib.pagesizes import LETTER
     from reportlab.lib.units import inch
-    from reportlab.pdfgen import canvas
 
-    q, cur, biz = rec.quote, rec.quote.get("currency", book.currency), book.business
-    buf = io.BytesIO()
-    c = canvas.Canvas(buf, pagesize=LETTER, pageCompression=1)
-    c.setTitle(f"Quote {rec.number} from {biz.get('name', '')}")
-    c.setAuthor(biz.get("name", ""))
+    cur, biz = doc.get("currency", book.currency), book.business
     width, height = LETTER
     left, right = 0.75 * inch, width - 0.75 * inch
     y = height - 0.8 * inch
-
     c.setFont("Helvetica-Bold", 18)
     c.drawString(left, y, biz.get("name", ""))
     c.setFont("Helvetica", 9)
-    contact = " · ".join(x for x in (biz.get("phone"), biz.get("email"), biz.get("address")) if x)
-    c.drawString(left, y - 14, contact)
+    c.drawString(left, y - 14, " · ".join(x for x in (biz.get("phone"), biz.get("email"), biz.get("address")) if x))
     if biz.get("license"):
         c.drawString(left, y - 26, f"License {biz['license']}")
     c.setFont("Helvetica-Bold", 22)
-    c.drawRightString(right, y, "QUOTE")
-    issued = _quote_date(rec)
+    c.drawRightString(right, y, title)
     c.setFont("Helvetica", 10)
-    c.drawRightString(right, y - 16, f"{rec.number} · version {rec.version}")
-    c.drawRightString(right, y - 29, f"Issued {issued:%b %d, %Y} · valid until {issued + timedelta(days=VALID_DAYS):%b %d, %Y}")
+    for i, line in enumerate(ref_lines):
+        c.drawRightString(right, y - 16 - 13 * i, line)
 
     y -= 62
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(left, y, "Prepared for")
+    c.drawString(left, y, party_label)
     c.setFont("Helvetica", 10)
-    for i, text in enumerate(x for x in (rec.customer.get("name"), rec.site, rec.zip and f"ZIP {rec.zip}") if x):
+    shown = [x for x in party_lines if x]
+    for i, text in enumerate(shown):
         c.drawString(left, y - 14 * (i + 1), text)
 
-    y -= 70
+    y -= 28 + 14 * max(len(shown), 3)
     c.setFillGray(0.93)
     c.rect(left, y - 4, right - left, 18, stroke=0, fill=1)
     c.setFillGray(0)
@@ -82,7 +74,7 @@ def render_pdf(book: PriceBook, rec: QuoteRecord, accept_url: str) -> bytes:
     c.drawRightString(right - 6, y + 1, "Amount")
     y -= 20
     c.setFont("Helvetica", 10)
-    for line in q["lines"]:
+    for line in doc["lines"]:
         if y < 2.6 * inch:
             c.showPage()
             y = height - inch
@@ -97,18 +89,19 @@ def render_pdf(book: PriceBook, rec: QuoteRecord, accept_url: str) -> bytes:
             c.drawString(left + 6, y, extra)
         y -= 18
 
-    if q.get("multiplier_flag"):
+    if doc.get("multiplier_flag"):
         c.setFont("Helvetica-Oblique", 9)
         c.setFillGray(0.35)
-        c.drawString(left + 6, y + 4, f"Labor is charged at the {q['multiplier_flag'].replace('_', '-')} rate "
-                                      f"(x {fmt_qty(Decimal(q['multiplier']))}).")
+        c.drawString(left + 6, y + 4, f"Labor is charged at the {doc['multiplier_flag'].replace('_', '-')} rate "
+                                      f"(x {fmt_qty(Decimal(doc['multiplier']))}).")
         c.setFillGray(0)
         y -= 14
     c.setLineWidth(0.5)
     c.line(right - 230, y + 8, right, y + 8)
-    rows = [("Subtotal", fmt_money(Decimal(q["subtotal"]), cur)),
-            (f"{q['tax_name']} ({fmt_qty(Decimal(q['tax_rate']) * 100)}% on materials {fmt_money(Decimal(q['taxable']), cur)})"
-             if q.get("taxable") else q["tax_name"], fmt_money(Decimal(q["tax"]), cur))]
+    rows = [("Subtotal", fmt_money(Decimal(doc["subtotal"]), cur)),
+            (f"{doc['tax_name']} ({fmt_qty(Decimal(doc['tax_rate']) * 100)}% on materials "
+             f"{fmt_money(Decimal(doc['taxable']), cur)})" if doc.get("taxable") else doc["tax_name"],
+             fmt_money(Decimal(doc["tax"]), cur))]
     for label, value in rows:
         y -= 6
         c.setFont("Helvetica", 10)
@@ -118,8 +111,29 @@ def render_pdf(book: PriceBook, rec: QuoteRecord, accept_url: str) -> bytes:
     y -= 6
     c.setFont("Helvetica-Bold", 13)
     c.drawRightString(right - 110, y, "Total")
-    c.drawRightString(right - 6, y, fmt_money(Decimal(q["total"]), cur))
+    c.drawRightString(right - 6, y, fmt_money(Decimal(doc["total"]), cur))
+    return y
 
+
+def render_pdf(book: PriceBook, rec: QuoteRecord, accept_url: str) -> bytes:
+    from reportlab.graphics import renderPDF
+    from reportlab.graphics.barcode import qr
+    from reportlab.graphics.shapes import Drawing
+    from reportlab.lib.pagesizes import LETTER
+    from reportlab.lib.units import inch
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=LETTER, pageCompression=1)
+    c.setTitle(f"Quote {rec.number} from {book.business.get('name', '')}")
+    c.setAuthor(book.business.get("name", ""))
+    issued = _quote_date(rec)
+    _draw_document(c, book, rec.quote, title="QUOTE",
+                   ref_lines=[f"{rec.number} · version {rec.version}",
+                              f"Issued {issued:%b %d, %Y} · valid until {issued + timedelta(days=VALID_DAYS):%b %d, %Y}"],
+                   party_label="Prepared for",
+                   party_lines=[rec.customer.get("name", ""), rec.site, rec.zip and f"ZIP {rec.zip}"])
+    left = 0.75 * inch
     box = 1.3 * inch
     widget = qr.QrCodeWidget(accept_url)
     x0, y0, x1, y1 = widget.getBounds()
@@ -136,6 +150,37 @@ def render_pdf(book: PriceBook, rec: QuoteRecord, accept_url: str) -> bytes:
     c.setFillGray(0.35)
     c.drawString(left + box + 14, 0.9 * inch + 6,
                  f"Fixed price for the work listed. Valid {VALID_DAYS} days. Changes to the scope are quoted separately.")
+    c.showPage()
+    c.save()
+    return buf.getvalue()
+
+
+def render_invoice_pdf(book: PriceBook, invoice: dict) -> bytes:
+    """Invoice PDF from a stored invoice (see invoices.py). Payment terms come from the price book."""
+    from reportlab.lib.pagesizes import LETTER
+    from reportlab.lib.units import inch
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=LETTER, pageCompression=1)
+    c.setTitle(f"Invoice {invoice['number']} from {book.business.get('name', '')}")
+    c.setAuthor(book.business.get("name", ""))
+    issued = date.fromisoformat(invoice["issued"])
+    due = date.fromisoformat(invoice["due"])
+    _draw_document(c, book, invoice["doc"], title="INVOICE",
+                   ref_lines=[f"{invoice['number']} · for quote {invoice['quote_number']}",
+                              f"Issued {issued:%b %d, %Y} · due {due:%b %d, %Y}"],
+                   party_label="Bill to",
+                   party_lines=[invoice["customer"].get("name", ""), invoice.get("site", ""),
+                                invoice.get("zip") and f"ZIP {invoice['zip']}", invoice["customer"].get("email", "")])
+    left = 0.75 * inch
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(left, 1.6 * inch, f"Amount due: {fmt_money(Decimal(invoice['doc']['total']), invoice['doc'].get('currency', book.currency))}")
+    c.setFont("Helvetica", 9)
+    c.setFillGray(0.35)
+    terms = book.business.get("payment_terms") or f"Payment due by {due:%b %d, %Y}. Thank you for your business."
+    for i, chunk in enumerate(textwrap.wrap(terms, 100)):
+        c.drawString(left, 1.35 * inch - 12 * i, chunk)
     c.showPage()
     c.save()
     return buf.getvalue()
