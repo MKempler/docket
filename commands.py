@@ -145,7 +145,7 @@ def jobs(raw_args: str = "", **kwargs) -> str:
 DOCKET_HELP = """Docket
   /quote <job>        price a job from your price book, then send it
   /jobs [status]      your quotes and jobs by status
-  /pricebook          show or validate your price book
+  /pricebook          show your price book; /pricebook add <prices> changes it (preview first)
   /docket demo        load the demo company (Copperline Plumbing & Drain); 'demo reset' wipes existing quotes first
   /docket setup       run in Telegram, Discord or Slack: quote cards and customer pings come to this chat
   /docket serve       start the customer accept page in this session
@@ -236,3 +236,127 @@ def _invoice_text(inv: dict) -> str:
              else f"saved to {inv['pdf']}" if inv.get("pdf") else "saved")
     out = f"🧾 {inv['number']} for {inv['quote_number']} {inv['customer']['name']}: {fmt_money(Decimal(inv['total']))}, due {inv['due']}. Invoice {where}."
     return out + (f"\n{inv['note']}" if inv.get("note") else "")
+
+
+PRICEBOOK_USAGE = """Docket price book
+  /pricebook                         show it
+  /pricebook validate                check it for mistakes
+  /pricebook add <prices>            add or change prices in your own words, or paste a whole list / CSV:
+                                       labor 145/hr · tax 8.25% · service call $99
+                                       3/4" PEX $2.20/ft · Sump pump $289 each · Backflow test $95 flat
+                                       TOILET-REPLACE 2 hours
+  /pricebook import <file.csv|.txt>  the same, from a file
+  /pricebook remove <CODE>           take an item out
+  /pricebook alias <CODE> <words>    teach Docket another name for an item
+  /pricebook save | cancel           keep or drop the change waiting for review
+  /pricebook undo                    put back the price book from before the last save
+  /pricebook new <business>, labor <rate>/hr[, tax 7%]   start your own (empty) price book
+Every change is shown first and saved only when you confirm."""
+
+SAVE_CHOICES = [
+    {"value": "save", "label": "✅ Save these changes"},
+    {"value": "cancel", "label": "Cancel"},
+]
+
+
+def make_pricebook_command(ctx: Any):
+    def pricebook(raw_args: str = "", **kwargs) -> str:
+        surface = str(kwargs.get("platform") or "")
+        try:
+            return _pricebook(ctx, (raw_args or "").strip(), surface)
+        except Exception as exc:
+            from .pbedit import EditError
+            if isinstance(exc, EditError):
+                return f"Docket: {exc}"
+            logger.exception("/pricebook failed")
+            return f"Docket could not edit the price book: {type(exc).__name__}: {exc}"
+    return pricebook
+
+
+def _pricebook(ctx: Any, text: str, surface: str) -> str:
+    verb, _, rest = text.partition(" ")
+    verb, rest = verb.lower(), rest.strip()
+    if verb in {"", "show", "list"}:
+        return pricebook_text()
+    if verb == "validate":
+        return pricebook_text(validate=True)
+    if verb in {"help", "-h", "--help"}:
+        return PRICEBOOK_USAGE
+    if verb == "save":
+        return runtime.pricebook_save()
+    if verb == "cancel":
+        return runtime.pricebook_cancel()
+    if verb == "undo":
+        return runtime.pricebook_undo()
+    if verb in {"add", "set", "change", "update", "import", "new", "remove", "delete", "alias"} and not rest:
+        return PRICEBOOK_USAGE
+    if verb == "import":
+        from pathlib import Path
+        path = Path(rest.strip("'\"")).expanduser()
+        if not path.is_file():
+            return f"Docket: no file at {path}. Paste the list instead: /pricebook add <your prices>"
+        if path.stat().st_size > 512_000:
+            return "Docket: that file is over 500 KB. Split it, or paste the part with your prices."
+        plan = runtime.pricebook_propose(path.read_text(encoding="utf-8", errors="replace"), llm=runtime.llm(ctx))
+    elif verb in {"add", "set", "change", "update"}:
+        plan = runtime.pricebook_propose(rest, llm=runtime.llm(ctx))
+    elif verb in {"remove", "delete"}:
+        plan = runtime.pricebook_propose(removals=tuple(c for c in rest.replace(",", " ").split() if c))
+    elif verb == "alias":
+        code, _, words = rest.partition(" ")
+        if not words.strip():
+            return "Give the code and the new name, e.g. /pricebook alias PTRAP p trap"
+        plan = runtime.pricebook_propose(aliases=((code, words.strip().strip("'\"")),))
+    elif verb == "new":
+        plan = runtime.pricebook_propose(rest, fresh=True)
+    else:
+        # "/pricebook labor 145/hr" with no verb: treat the whole thing as an add
+        plan = runtime.pricebook_propose(text, llm=runtime.llm(ctx))
+    return _offer_pricebook(ctx, plan, surface)
+
+
+def _offer_pricebook(ctx: Any, plan, surface: str) -> str:
+    preview = plan.preview()
+    if not plan.changes:
+        return preview
+    if runtime.push_pricebook_card(plan, surface):      # Telegram / Discord / Slack: Save / Cancel buttons
+        return ""
+    try:
+        choice = ctx.ask_choice(f"Save {len(plan.changes)} price book change{'s' if len(plan.changes) != 1 else ''}?",
+                                SAVE_CHOICES)
+    except Exception:
+        choice = None
+    if choice == "save":
+        return preview + "\n\n" + runtime.pricebook_save(plan.token)
+    if choice == "cancel":
+        return preview + "\n\n" + runtime.pricebook_cancel(plan.token)
+    return preview + "\n\nReply /pricebook save to keep it, or /pricebook cancel."
+
+
+def pricebook_text(*, validate: bool = False) -> str:
+    from .money import fmt_qty
+    book, errors, path, is_demo = runtime.book()
+    label = " (demo price book: /pricebook new starts your own)" if is_demo else ""
+    if errors:
+        return f"Price book {path} has {len(errors)} error(s):\n" + "\n".join(f"  • {e}" for e in errors[:25])
+    if validate:
+        return (f"Price book OK{label}: {len(book.assemblies)} jobs, {len(book.fees)} flat-rate items, "
+                f"{len(book.materials)} materials.\n{path}")
+    cur = book.currency
+    head = (f"{book.business.get('name', 'Price book')}{label}\n{cur} · labor {fmt_money(book.labor_rate, cur)}/h "
+            f"(min {fmt_qty(book.labor_minimum_hours)} h) · {book.tax_name} {fmt_qty(book.tax_rate * 100)}% on "
+            f"{', '.join(sorted(book.tax_applies_to)) or 'nothing'}"
+            + (f" · {book.service_call.name} {fmt_money(book.service_call.amount, cur)}" if book.service_call else ""))
+    lines = [head]
+    if book.assemblies:
+        lines.append("Jobs (labor + parts):")
+        lines += [f"  {a.code:<18} {a.name}  {fmt_qty(a.labor_hours)} h + {len(a.materials)} part"
+                  f"{'s' if len(a.materials) != 1 else ''}  per {a.unit}" for a in book.assemblies.values()]
+    if book.fees:
+        lines.append("Flat-rate:")
+        lines += [f"  {f.code:<18} {f.name}  {fmt_money(f.amount, cur)}" for f in book.fees.values()]
+    if book.materials:
+        lines.append("Materials:")
+        lines += [f"  {m.code:<18} {m.name}  {fmt_money(m.price, cur)}/{m.unit}" for m in book.materials.values()]
+    lines.append(f"File: {path}\nChange it: /pricebook add <prices>  (e.g. labor 145/hr, 3/4\" PEX $2.20/ft)")
+    return "\n".join(lines)

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 PLUGIN_ID = "docket"
 VERSION = "0.1.0"
-GATED_TOOLS = {"docket_send_quote"}
+GATED_TOOLS = {"docket_send_quote", "docket_pricebook_save"}
 
 NEVER_PRICE = ("Never state, estimate or change a price yourself: show the owner exactly the text this tool returns, "
                "and say plainly when a line needs a price.")
@@ -83,6 +83,74 @@ JOBS_SCHEMA = {
     "parameters": {"type": "object", "properties": {
         "status": {"type": "string", "description": "Optional comma-separated statuses to include"}}},
 }
+
+
+PRICEBOOK_EDIT_SCHEMA = {
+    "name": "docket_pricebook_edit",
+    "description": ("Preview changes to the owner's price book from their own words or a pasted price list / CSV: "
+                    "labor rate, tax, service call, item prices, new items, a job's labor hours. Never saves; shows "
+                    "exactly what would change. Pass the owner's words unchanged; never make up prices."),
+    "parameters": {"type": "object", "properties": {
+        "changes": {"type": "string", "description": "The owner's words or pasted list, word for word"},
+        "remove": {"type": "array", "items": {"type": "string"}, "description": "Item codes to remove"}}},
+}
+
+PRICEBOOK_SAVE_SCHEMA = {
+    "name": "docket_pricebook_save",
+    "description": ("Save the price book change previewed by docket_pricebook_edit. Requires the owner's approval. "
+                    "Only call it after the owner has seen the preview and said to save."),
+    "parameters": {"type": "object", "properties": {
+        "preview_id": {"type": "string", "description": "The preview_id docket_pricebook_edit returned"}},
+        "required": ["preview_id"]},
+}
+
+
+def _make_pricebook_edit_tool(ctx):
+    def handler(args: dict, **kwargs) -> str:
+        try:
+            from . import runtime
+            from .pbedit import EditError
+            args = args or {}
+            words = str(args.get("changes") or "").strip()
+            removals = tuple(str(c) for c in (args.get("remove") or []) if str(c).strip())
+            try:
+                plan = runtime.pricebook_propose(words, llm=runtime.llm(ctx), removals=removals)
+            except EditError as exc:
+                return json.dumps({"ok": False, "error": str(exc)})
+            out = {"ok": True, "preview": plan.preview(), "changes": len(plan.changes)}
+            if not plan.changes:
+                out["next"] = "Nothing to save. Tell the owner what Docket couldn't read, from the preview."
+                return json.dumps(out)
+            out["preview_id"] = plan.token
+            surface = ""
+            try:
+                surface = ctx.session_surface() or ""
+            except Exception:
+                pass
+            if runtime.push_pricebook_card(plan, surface):
+                out["next"] = ("The preview was sent to the owner with Save / Cancel buttons. Say it is waiting for "
+                               "them; do not call docket_pricebook_save.")
+            else:
+                out["next"] = ("Show the owner the preview exactly as written and ask whether to save it. Only if they "
+                               "say yes, call docket_pricebook_save with this preview_id.")
+            return json.dumps(out)
+        except Exception as exc:
+            logger.exception("docket_pricebook_edit failed")
+            return _err(exc)
+    return handler
+
+
+def _pricebook_save_tool(args: dict, **kwargs) -> str:
+    try:
+        from . import runtime
+        from .pbedit import EditError
+        try:
+            return json.dumps({"ok": True, "message": runtime.pricebook_save(str((args or {}).get("preview_id") or ""))})
+        except EditError as exc:
+            return json.dumps({"ok": False, "error": str(exc)})
+    except Exception as exc:
+        logger.exception("docket_pricebook_save failed")
+        return _err(exc)
 
 
 def _err(exc: Exception) -> str:
@@ -284,29 +352,19 @@ def _register_blueprints(ctx):
             logger.info("Docket: blueprint %s not registered (%s)", key, exc)
 
 
-def _pricebook_command(raw_args: str = "", **kwargs) -> str:
+def _pricebook_approval_text(preview_id) -> str:
+    """The approval prompt lists Docket's own record of the changes, not the model's summary of them."""
     try:
         from . import runtime
-        from .money import fmt_money, fmt_qty
-        book, errors, path, is_demo = runtime.book()
-        sub = (raw_args or "").strip().lower() or "show"
-        label = " (demo price book)" if is_demo else ""
-        if errors:
-            return f"Price book {path}{label} has {len(errors)} error(s):\n" + "\n".join(f"  • {e}" for e in errors[:25])
-        if sub == "validate":
-            return (f"Price book OK{label}: {len(book.assemblies)} assemblies, {len(book.materials)} materials, "
-                    f"{len(book.fees)} fees.\n{path}")
-        lines = [f"{book.business.get('name', 'Price book')}{label} · {book.currency} · labor "
-                 f"{fmt_money(book.labor_rate, book.currency)}/h · {book.tax_name} {fmt_qty(book.tax_rate * 100)}% on "
-                 f"{', '.join(sorted(book.tax_applies_to)) or 'nothing'}", "Assemblies:"]
-        lines += [f"  {a.code:<18} {a.name} (per {a.unit})" for a in book.assemblies.values()]
-        lines.append("Fees:")
-        lines += [f"  {f.code:<18} {f.name} {fmt_money(f.amount, book.currency)}" for f in book.fees.values()]
-        lines.append(f"File: {path}")
-        return "\n".join(lines)
-    except Exception as exc:
-        logger.exception("/pricebook failed")
-        return f"Docket could not read the price book: {type(exc).__name__}: {exc}"
+        from .pbedit import pending
+        plan = pending(runtime.store())
+    except Exception:
+        plan = None
+    if plan is None or str(preview_id or "") != plan.token:
+        return "Save a Docket price book change? (No matching preview: this will be refused.)"
+    shown = "\n".join(f"  {c.label}" for c in plan.changes[:10])
+    more = f"\n  … and {len(plan.changes) - 10} more" if len(plan.changes) > 10 else ""
+    return f"Save {len(plan.changes)} change{'s' if len(plan.changes) != 1 else ''} to your Docket price book?\n{shown}{more}"
 
 
 def _make_gate(ctx):
@@ -316,9 +374,14 @@ def _make_gate(ctx):
         try:
             if ctx.current_cron_execution() is not None:
                 return {"action": "block",
-                        "message": "Docket never sends quotes from scheduled runs. Tap ✅ on the quote card."}
+                        "message": ("Docket never saves price book changes from scheduled runs."
+                                    if tool_name == "docket_pricebook_save" else
+                                    "Docket never sends quotes from scheduled runs. Tap ✅ on the quote card.")}
         except Exception:
             return {"action": "block", "message": "Docket could not confirm this is an interactive session."}
+        if tool_name == "docket_pricebook_save":
+            return {"action": "approve", "message": _pricebook_approval_text((args or {}).get("preview_id")),
+                    "rule_key": f"docket:{tool_name}"}
         return {"action": "approve",
                 "message": f"Send quote {(args or {}).get('quote_id', '?')} to the customer?",
                 "rule_key": f"docket:{tool_name}"}
@@ -344,12 +407,12 @@ def _hint_hook(user_message: str = "", **kwargs):
 
 def _docket_command(raw_args: str = "", **kwargs) -> str:
     return (f"Docket {VERSION}\n  /quote <job>   price and send a quote\n  /jobs          your pipeline\n"
-            f"  /pricebook     show or validate your price book")
+            f"  /pricebook     show your price book, or change it in your own words")
 
 
 def register(ctx):
     from . import runtime
-    from .commands import cli_main, cli_setup, docket_admin, jobs, make_quote_command
+    from .commands import cli_main, cli_setup, docket_admin, jobs, make_pricebook_command, make_quote_command
     runtime.CTX = ctx
 
     # Docket's own model slot: job intake only maps words to price-book codes, so thinking is switched off
@@ -371,6 +434,10 @@ def register(ctx):
                       description="Send a quote to the customer", emoji="📨")
     ctx.register_tool(name="docket_close_job", toolset="docket", schema=CLOSE_SCHEMA, handler=_make_close_tool(ctx),
                       description="Finish a job and make its invoice", emoji="🧾")
+    ctx.register_tool(name="docket_pricebook_edit", toolset="docket", schema=PRICEBOOK_EDIT_SCHEMA,
+                      handler=_make_pricebook_edit_tool(ctx), description="Preview price book changes", emoji="📒")
+    ctx.register_tool(name="docket_pricebook_save", toolset="docket", schema=PRICEBOOK_SAVE_SCHEMA,
+                      handler=_pricebook_save_tool, description="Save a previewed price book change", emoji="📒")
     ctx.register_tool(name="docket_jobs", toolset="docket", schema=JOBS_SCHEMA, handler=_jobs_tool,
                       description="Quotes and jobs by status", emoji="📋")
     for name, schema in REPORT_SCHEMAS.items():
@@ -383,8 +450,9 @@ def register(ctx):
     ctx.register_command("quote", make_quote_command(ctx), description="Price, revise or send a quote",
                          args_hint="<customer, ZIP, work> | show|revise|send|discard Q-1001")
     ctx.register_command("jobs", jobs, description="Your Docket quotes and jobs by status", args_hint="[status]")
-    ctx.register_command("pricebook", _pricebook_command, description="Show or validate your Docket price book",
-                         args_hint="[show|validate]")
+    ctx.register_command("pricebook", make_pricebook_command(ctx),
+                         description="Show your Docket price book, or change prices in your own words",
+                         args_hint="[add <prices> | import <file> | remove | alias | save | cancel | undo | new]")
     ctx.register_command("docket", docket_admin, description="Docket help, accept page and link settings",
                          args_hint="[serve|link <url>]")
     ctx.register_cli_command(name="docket", help="Docket: quotes for trades businesses", setup_fn=cli_setup,

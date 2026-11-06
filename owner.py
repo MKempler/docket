@@ -136,9 +136,20 @@ def parse(data: str) -> tuple[str, int, str]:
     return parts[1], int(parts[2]), (parts[3] if len(parts) > 3 else "")
 
 
+def pricebook_card(plan) -> Card:
+    """A price-book preview with Save / Cancel. Button data carries the preview's token, so an old card
+    can never save a newer (or different) change."""
+    n = len(plan.changes)
+    caption = f"📒 Price book: {n} change{'s' if n != 1 else ''} to review"
+    return Card(caption=caption, text=plan.preview(),
+                buttons=[[Button("✅ Save", f"{PREFIX}:pbsave:0:{plan.token}", "primary"),
+                          Button("Cancel", f"{PREFIX}:pbcancel:0:{plan.token}")]])
+
+
 def perform(data: str, *, platform: str, user_id: str, store, book, outbox_root, base_url: Callable[[], str],
-            render_pdf: Callable | None = None) -> ActionResult:
+            render_pdf: Callable | None = None, pricebook: tuple[Callable, Callable] | None = None) -> ActionResult:
     """Run one button tap. Pure business logic; adapters handle drawing and network."""
+    from .pbedit import EditError
     from .service import ServiceError, send_quote
     from .store import StoreError
     owner = get_owner(store, platform)
@@ -148,6 +159,13 @@ def perform(data: str, *, platform: str, user_id: str, store, book, outbox_root,
         return ActionResult(False, "Only the business owner can use these buttons.")
     try:
         verb, quote_id, arg = parse(data)
+        if verb in {"pbsave", "pbcancel"}:
+            if pricebook is None:
+                return ActionResult(False, "Price book edits aren't available here.")
+            save, cancel = pricebook
+            text = save(arg) if verb == "pbsave" else cancel(arg)
+            done = Card(caption=("📒 " + text), text=("📒 " + text))
+            return ActionResult(True, "Saved" if verb == "pbsave" else "Cancelled", card=done)
         rec = store.get(quote_id)
         if verb in {"send", "edit", "discard"} and arg and arg.isdigit() and int(arg) != rec.version:
             return ActionResult(False, f"That card is for v{arg}; {rec.number} is now v{rec.version}.",
@@ -177,7 +195,7 @@ def perform(data: str, *, platform: str, user_id: str, store, book, outbox_root,
             return ActionResult(True, "Pick a day",
                                 followup=f"Reply with the day, e.g. /quote book {rec.number} {booking_days(date.today(), 3)[-1]:%Y-%m-%d}")
         return ActionResult(False, "Unknown action")
-    except (ServiceError, StoreError, ValueError) as exc:
+    except (ServiceError, StoreError, EditError, ValueError) as exc:
         return ActionResult(False, str(exc)[:180])
 
 

@@ -14,6 +14,8 @@ provides_tools:
   - docket_send_quote
   - docket_jobs
   - docket_close_job
+  - docket_pricebook_edit
+  - docket_pricebook_save
   - docket_followups
   - docket_run_sheet
   - docket_pipeline

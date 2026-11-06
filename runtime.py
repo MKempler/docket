@@ -128,7 +128,8 @@ def tap(data: str, platform: str, user_id: str):
     """A button press from any platform, with this process's store, price book and accept page."""
     from .owner import perform
     return perform(data, platform=platform, user_id=user_id, store=store(), book=require_book(),
-                   outbox_root=outbox_root(), base_url=ensure_accept_server, render_pdf=render_pdf_fn())
+                   outbox_root=outbox_root(), base_url=ensure_accept_server, render_pdf=render_pdf_fn(),
+                   pricebook=(pricebook_save, pricebook_cancel))
 
 
 def push_quote_card(rec: Any, surface: str) -> bool:
@@ -164,3 +165,40 @@ def close_out(quote_id: int, *, extra_words: str = "", actor: str = "owner", sur
     from .render import render_invoice_pdf
     return _close(store(), require_book(), quote_id, outbox_root=outbox_root(), extra_words=extra_words, llm=llm,
                   handoff=invoice_handoff(), actor=actor, surface=surface, render=render_invoice_pdf)
+
+
+# ---------------------------------------------------------------- price book edits
+
+def own_pricebook_path() -> Path:
+    return data_dir() / "pricebook.yaml"
+
+
+def pricebook_propose(text: str = "", *, llm: Any = None, removals: tuple[str, ...] = (),
+                      aliases: tuple[tuple[str, str], ...] = (), fresh: bool = False):
+    from .pbedit import propose
+    current, _ = pricebook_path()
+    return propose(store(), current, text, llm=llm, removals=removals, aliases=aliases, fresh=fresh)
+
+
+def pricebook_save(token: str = "") -> str:
+    from .pbedit import save
+    current, _ = pricebook_path()
+    return save(store(), own_pricebook_path(), current, token)
+
+
+def pricebook_cancel(token: str = "") -> str:
+    from .pbedit import cancel
+    return cancel(store(), token)
+
+
+def pricebook_undo() -> str:
+    from .pbedit import undo
+    return undo(store(), own_pricebook_path())
+
+
+def push_pricebook_card(plan: Any, surface: str) -> bool:
+    """On Telegram / Discord / Slack, show the preview with Save and Cancel buttons."""
+    from .owner import CHANNELS, get_owner, push, pricebook_card
+    if surface not in CHANNELS or not CHANNELS[surface].live or not get_owner(store(), surface):
+        return False
+    return bool(push(store(), pricebook_card(plan), platforms=(surface,)))

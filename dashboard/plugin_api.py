@@ -137,3 +137,82 @@ def act(quote_id: int, action: str, body: dict | None = None) -> dict[str, Any]:
     except Exception as exc:
         raise HTTPException(409, str(exc))
     raise HTTPException(404, f"Unknown action {action!r}")
+
+
+# ---------------------------------------------------------------- price book page
+
+def _pricebook_payload() -> dict[str, Any]:
+    runtime, pbedit = _module("runtime"), _module("pbedit")
+    book, errors, path, is_demo = runtime.book()
+    history = runtime.own_pricebook_path().parent / "pricebook-history"
+    can_undo = history.exists() and any(p.suffix in {".yaml", ".none"} for p in history.iterdir())
+    pending = pbedit.pending(runtime.store())
+    out: dict[str, Any] = {"path": str(path), "is_demo": is_demo, "errors": [str(e) for e in errors[:25]],
+                           "can_undo": can_undo, "pending": _plan_json(pending) if pending else None}
+    if book is None:
+        return out
+    parts_cost = lambda a: sum((book.materials[c.code].price * c.qty for c in a.materials  # noqa: E731
+                                if c.code in book.materials), Decimal(0))
+    out.update({
+        "business": book.business.get("name", ""), "currency": book.currency,
+        "labor_rate": str(book.labor_rate), "labor_minimum": str(book.labor_minimum_hours),
+        "tax_name": book.tax_name, "tax_rate": str(book.tax_rate), "tax_applies_to": sorted(book.tax_applies_to),
+        "service_call": ({"name": book.service_call.name, "amount": str(book.service_call.amount)}
+                         if book.service_call else None),
+        "multipliers": {k: str(v) for k, v in book.multipliers.items()},
+        "zones": [{"name": z.name, "amount": str(z.amount), "zips": sorted(z.zips)} for z in book.zones],
+        "assemblies": [{"code": a.code, "name": a.name, "unit": a.unit, "hours": str(a.labor_hours),
+                        "parts": [{"code": c.code, "qty": str(c.qty),
+                                   "name": book.materials[c.code].name if c.code in book.materials else c.code}
+                                  for c in a.materials],
+                        "price": str((book.labor_rate * a.labor_hours + parts_cost(a)).quantize(Decimal("0.01"))),
+                        "aliases": list(a.aliases), "exclude": list(a.exclude)} for a in book.assemblies.values()],
+        "fees": [{"code": f.code, "name": f.name, "unit": f.unit, "amount": str(f.amount), "aliases": list(f.aliases)}
+                 for f in book.fees.values()],
+        "materials": [{"code": m.code, "name": m.name, "unit": m.unit, "price": str(m.price), "cost": str(m.cost),
+                       "markup": str(m.markup), "aliases": list(m.aliases)} for m in book.materials.values()],
+    })
+    return out
+
+
+def _plan_json(plan) -> dict[str, Any]:
+    return {"token": plan.token, "changes": [c.__dict__ for c in plan.changes], "skipped": plan.skipped,
+            "summary": plan.summary, "preview": plan.preview()}
+
+
+def _pb_call(fn):
+    pbedit = _module("pbedit")
+    try:
+        return fn()
+    except pbedit.EditError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@router.get("/pricebook")
+def pricebook() -> dict[str, Any]:
+    return _pricebook_payload()
+
+
+@router.post("/pricebook/preview")
+def pricebook_preview(body: dict | None = None) -> dict[str, Any]:
+    runtime = _module("runtime")
+    body = body or {}
+    text = str(body.get("text") or "")[:200_000]
+    removals = tuple(str(c) for c in (body.get("remove") or []) if str(c).strip())
+    fresh = bool(body.get("new"))
+    plan = _pb_call(lambda: runtime.pricebook_propose(text, llm=runtime.llm(runtime.CTX), removals=removals,
+                                                      fresh=fresh))
+    return {"ok": True, "plan": _plan_json(plan)}
+
+
+@router.post("/pricebook/{action}")
+def pricebook_action(action: str, body: dict | None = None) -> dict[str, Any]:
+    runtime = _module("runtime")
+    token = str((body or {}).get("token") or "")
+    if action == "save":
+        return {"ok": True, "message": _pb_call(lambda: runtime.pricebook_save(token))}
+    if action == "cancel":
+        return {"ok": True, "message": runtime.pricebook_cancel(token)}
+    if action == "undo":
+        return {"ok": True, "message": runtime.pricebook_undo()}
+    raise HTTPException(404, f"Unknown action {action!r}")

@@ -82,3 +82,36 @@ def test_invoice_and_paid_actions(client):
     done_col = next(col for col in c.get("/api/plugins/docket/board").json()["columns"] if col["key"] == "done")
     assert any(i["id"] == q.id and i["invoiced"] for i in done_col["items"])
     assert c.post(f"/api/plugins/docket/quote/{q.id}/paid", json={}).json()["message"] == "INV-1001 marked paid"
+
+
+@pytest.fixture
+def pb(client, tmp_path, monkeypatch):
+    from docket.store_paths import DEMO_PRICEBOOK
+    own = tmp_path / "pricebook.yaml"
+    monkeypatch.setattr(runtime, "own_pricebook_path", lambda: own)
+    monkeypatch.setattr(runtime, "pricebook_path", lambda: (own, False) if own.exists() else (DEMO_PRICEBOOK, True))
+    return client[0], own
+
+
+def test_pricebook_page_preview_save_undo(pb):
+    c, own = pb
+    page = c.get("/api/plugins/docket/pricebook").json()
+    assert page["is_demo"] and page["labor_rate"] == "135.00" and not page["can_undo"]
+    wh = next(a for a in page["assemblies"] if a["code"] == "WH50-REPLACE")
+    assert wh["price"] == "1627.50" and [p["code"] for p in wh["parts"]] == ["WH50G", "WHKIT", "EXPTANK"]
+    plan = c.post("/api/plugins/docket/pricebook/preview", json={"text": "labor 150/hr\nmystery thing"}).json()["plan"]
+    assert len(plan["changes"]) == 1 and plan["skipped"] and not own.exists()
+    assert c.get("/api/plugins/docket/pricebook").json()["pending"]["token"] == plan["token"]
+    r = c.post("/api/plugins/docket/pricebook/save", json={"token": plan["token"]}).json()
+    assert r["ok"] and own.exists()
+    page = c.get("/api/plugins/docket/pricebook").json()
+    assert page["labor_rate"] == "150.00" and not page["is_demo"] and page["can_undo"] and page["pending"] is None
+    c.post("/api/plugins/docket/pricebook/undo", json={})
+    assert c.get("/api/plugins/docket/pricebook").json()["is_demo"] and not own.exists()
+
+
+def test_pricebook_errors_are_400s(pb):
+    c, _ = pb
+    r = c.post("/api/plugins/docket/pricebook/preview", json={"remove": ["WAXRING"]})
+    assert r.status_code == 400 and "TOILET-REPLACE" in r.json()["detail"]
+    assert c.post("/api/plugins/docket/pricebook/save", json={"token": "x"}).status_code == 400

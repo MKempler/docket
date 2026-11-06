@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://hermes-agent.nousresearch.com"><img alt="Hermes Agent plugin" src="https://img.shields.io/badge/Hermes%20Agent-plugin-2a78d6"></a>
   <img alt="Requires Hermes 0.22.7+" src="https://img.shields.io/badge/hermes-%E2%89%A50.22.7-1baf7a">
-  <img alt="82 tests passing" src="https://img.shields.io/badge/tests-82%20passing-1baf7a">
+  <img alt="102 tests passing" src="https://img.shields.io/badge/tests-102%20passing-1baf7a">
   <img alt="Surfaces" src="https://img.shields.io/badge/works%20in-Telegram%20%C2%B7%20Slack%20%C2%B7%20Discord%20%C2%B7%20Desktop%20%C2%B7%20CLI-6250d6">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-8a897f"></a>
 </p>
@@ -59,7 +59,7 @@ Then start a **new** Hermes session (new plugins' tools load in the next session
 | `/jobs` moving the job to **Accepted** | then `/quote book`, `/quote done`, `/quote paid` |
 
 > [!TIP]
-> In **Hermes Desktop**, open **Capabilities → Plugins** and switch on **Docket** to get the **Jobs** board in the sidebar. Desktop plugins ship switched off by Hermes's design.
+> In **Hermes Desktop**, open **Capabilities → Plugins** and switch on **Docket**, then run `hermes gateway restart` once so its backend loads. You get **Jobs** and **Price book** in the sidebar. Desktop plugins ship switched off by Hermes's design.
 
 ---
 
@@ -160,7 +160,29 @@ Run `/docket setup` once in your chat with Hermes (`!docket setup` on Slack). Fr
 
 ## 📒 Your price book
 
-Everything Docket quotes comes from one YAML file you own. Run `/pricebook validate` after editing it; mistakes are reported with the line number.
+Everything Docket quotes comes from one YAML file you own. You never have to open it.
+
+### Change it in your own words
+
+Type a change, paste a whole price list, or load a CSV from your supplier or old spreadsheet. Docket shows exactly what would change and saves **only when you confirm**:
+
+```text
+/pricebook add labor 145/hr, 3/4" PEX $2.20/ft, Sump pump $289 each, Backflow test $95 flat
+/pricebook add TOILET-REPLACE 2 hours
+/pricebook import ~/Downloads/supplier-prices.csv
+/pricebook undo
+```
+
+<img src="assets/desktop-pricebook.png" alt="Docket's Price book page in Hermes Desktop previewing five changes, with one ambiguous line left unchanged">
+
+- **No invented prices.** Every price must appear, digit for digit, in what you typed. A model reads only the chatty lines a plain reader can't (*"toilets are 350 flat and 3/4 pex is 2.20 a foot"*), and any number it returns that you didn't write is refused and reported.
+- **No guesses.** A line that could mean several items is left unchanged, listing the candidates, as in `water heater $1200` above.
+- **Your file stays yours.** Edits change only the affected lines; your comments and layout are kept. Every save is re-validated and backed up, so `/pricebook undo` puts it back.
+- **Same flow everywhere.** A preview card with ✅ Save / Cancel on Telegram, Slack and Discord; the **Price book** page in Desktop; or just tell the agent (*"raise my labor rate to $150"*). Agent saves go through Hermes's approval prompt, which lists Docket's own record of the changes, are blocked in scheduled runs, and previews expire after 30 minutes. Asking the agent depends on your model calling the tool; `/pricebook add` and the Desktop page don't. Starting from scratch: `/pricebook new Rivera Plumbing, labor 120/hr, tax 7%`.
+
+### What's in it
+
+If you edit the file by hand, run `/pricebook validate` afterwards; mistakes are reported with the line number.
 
 ```yaml
 labor:
@@ -201,10 +223,11 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 <tr><td><code>/quote done Q-1007 [extra work]</code> · <code>/quote paid Q-1007</code></td><td>Invoice the finished job · mark it paid</td></tr>
 <tr><td><code>/jobs [status]</code></td><td>Your pipeline, grouped by status with totals</td></tr>
 <tr><td><code>/pricebook [validate]</code></td><td>Show or check your price book</td></tr>
+<tr><td><code>/pricebook add | import | remove | alias | undo | new</code></td><td>Change prices in your own words or from a CSV: preview first, then save</td></tr>
 <tr><td><code>/docket setup | demo | serve | link &lt;url&gt;</code></td><td>Owner chat · demo data · accept page · public link for customers</td></tr>
 </table>
 
-**Agent tools:** `docket_quote`, `docket_send_quote` *(asks you first; blocked under cron)*, `docket_price_preview`, `docket_jobs`, `docket_close_job`, `docket_followups`, `docket_run_sheet`, `docket_pipeline`.
+**Agent tools:** `docket_quote`, `docket_send_quote` *(asks you first; blocked under cron)*, `docket_pricebook_edit` *(preview only)*, `docket_pricebook_save` *(asks you first; blocked under cron)*, `docket_price_preview`, `docket_jobs`, `docket_close_job`, `docket_followups`, `docket_run_sheet`, `docket_pipeline`.
 
 **Automations** (in `/blueprint`, the Desktop Cron page and the dashboard):
 
@@ -240,10 +263,10 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 | | |
 |---|---|
 | **Stored data** | Customers, quotes, events and invoices in a local SQLite file under `plugin-data/docket/`. It survives updates and reinstalls. |
-| **Model calls** | Job descriptions go to the model you configured in Hermes, to map them to codes. Prices never come from the model. |
+| **Model calls** | Job descriptions go to the model you configured in Hermes, to map them to codes. Price lists it can't read plainly go to the same model. Prices never come from the model: an imported price must appear in your own words. |
 | **Network** | A local HTTP server for the customer accept page (loopback by default). Messages go only to *your* registered chat, through *your* bots. No telemetry. |
 | **Email** | Docket does **not** send email. It writes the customer email and PDF to the outbox for you to send. |
-| **Approvals** | A `pre_tool_call` gate asks before the agent sends a quote and blocks sends from scheduled runs. A `pre_llm_call` hook adds one line pointing the model at Docket's tools, only on messages about quoting. |
+| **Approvals** | A `pre_tool_call` gate asks before the agent sends a quote or saves a price book change (listing the exact changes), and blocks both from scheduled runs. A `pre_llm_call` hook adds one line pointing the model at Docket's tools, only on messages about quoting or your price book. |
 | **Payments** | None. Invoices are handed to Obol as drafts or kept as PDFs. |
 | **Automations** | Blueprint jobs you schedule keep running after Docket is removed, until you delete them. |
 
@@ -255,7 +278,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 git clone https://github.com/MKempler/docket && cd docket
 uv venv .venv && uv pip install --python .venv/bin/python ruamel.yaml pytest "reportlab>=4.2,<6" "Pillow>=12,<14" \
     pypdf fastapi httpx "python-telegram-bot==22.8" "discord.py==2.7.1" "slack-bolt==1.30.0"
-cd .. && docket/.venv/bin/python -m pytest -q docket/tests      # 82 tests
+cd .. && docket/.venv/bin/python -m pytest -q docket/tests      # 102 tests
 hermes plugins doctor docket --ci && hermes plugins validate docket --install-deps
 ```
 
