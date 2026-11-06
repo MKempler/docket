@@ -245,12 +245,19 @@ def catalog_text(book: PriceBook) -> str:
 INSTRUCTIONS = """You turn a tradesperson's job description into price-book line items. You never price anything.
 Rules:
 - Use ONLY codes from the catalog. If the work is not in the catalog, put a short description in "unpriced".
-- Prefer an assembly over separate materials when an assembly covers the work.
-- qty is in the item's unit (count for 'each', feet for 'ft', hours for LABOR). Sizes like "50 gallon" are
-  not quantities.
-- flags: weekend (Saturday/Sunday work), after_hours (evenings/nights), emergency (urgent, same day, flooding).
-- member: true only if the customer is said to be a member.
-- Put the customer's name, the street address and the 5-digit ZIP in their fields when given.
+- Installs, replacements and repairs use the ASSEMBLY code (it already includes its parts and labor). Never split
+  an assembly into its materials, and never add a material that an assembly already includes (a water heater
+  replacement already includes the expansion tank and install kit). Use a material code only for parts the owner
+  asks for in addition, e.g. "two extra supply lines".
+- Add a fee (haul-away, permit, camera inspection) ONLY if the owner mentions it. "Keeping the old unit" or
+  "no permit needed" means leave that fee out.
+- Add LABOR ONLY when the owner states a number of hours. Never add labor on top of an assembly.
+- qty is in the item's unit (count for 'each', feet for 'ft', hours for LABOR). Sizes like "50 gallon",
+  "1/2 inch" or "3/4 inch" are not quantities.
+- flags: weekend (Saturday/Sunday work), after_hours (evenings, nights, tonight), emergency (urgent, asap,
+  same day, flooding).
+- member: true if the customer is said to be a member.
+- Always copy the 5-digit ZIP into "zip". Put the customer's name and the street address in their fields.
 - If something essential is ambiguous, add a short question to "questions" instead of guessing.
 Return JSON only."""
 
@@ -270,10 +277,19 @@ def model_intake(llm: Any, book: PriceBook, text: str, *, previous: dict[str, An
     parsed = getattr(result, "parsed", None)
     if not isinstance(parsed, dict):
         raise ValueError("model did not return a job")
-    return _validated(book, parsed)
+    return _validated(book, parsed, text=text, previous=previous)
 
 
-def _validated(book: PriceBook, parsed: dict[str, Any]) -> IntakeResult:
+HOURS_RE = re.compile(r"\b\d+(?:\.\d+)?\s*(?:h|hr|hrs|hour|hours)\b", re.I)
+
+
+def _validated(book: PriceBook, parsed: dict[str, Any], *, text: str = "", previous: dict[str, Any] | None = None
+               ) -> IntakeResult:
+    """Check the model's job against the price book AND against the words themselves.
+
+    Code reads what code can read reliably (ZIP, timing flags, membership) and the model may not invent work:
+    LABOR needs stated hours, and a fee needs the owner to have mentioned it (by name or alias).
+    """
     notes: list[str] = []
     items: list[dict[str, Any]] = []
     unpriced = [str(u).strip() for u in parsed.get("unpriced") or [] if str(u).strip()]
@@ -299,11 +315,32 @@ def _validated(book: PriceBook, parsed: dict[str, Any]) -> IntakeResult:
             notes.append(f"{code} quantity {qty} rounded up to whole {entry.unit}")
             qty = qty.to_integral_value(rounding="ROUND_CEILING")
         items.append({"code": code, "qty": str(qty), "note": str(raw.get("note") or "")})
+
+    prev_codes = {i["code"] for i in (previous or {}).get("items", [])}
+    if text:
+        aliases = sorted(((tuple(_tokens(p)), c) for p, c in book.alias_index().items()), key=lambda kv: -len(kv[0]))
+        codes = set(book.assemblies) | set(book.fees) | set(book.materials) | {"LABOR"}
+        mentioned = set(_find_items(text, aliases, codes))
+        kept = []
+        for it in items:
+            kind = book.lookup(it["code"])[0]
+            if it["code"] == "LABOR" and "LABOR" not in prev_codes and not HOURS_RE.search(text):
+                notes.append("Dropped hourly labor the job did not ask for")
+                continue
+            if kind == "fee" and it["code"] not in prev_codes and it["code"] not in mentioned:
+                notes.append(f"Dropped {book.fees[it['code']].name.lower()}: not mentioned")
+                continue
+            kept.append(it)
+        items = kept
+
     flags = [f for f in parsed.get("flags") or [] if f in FLAG_PATTERNS]
-    zip_raw = str(parsed.get("zip") or "")
-    zm = ZIP_RE.search(zip_raw)
-    args = {"items": items, "zip": zm.group(1) if zm else "", "flags": flags,
-            "customer_tier": "member" if parsed.get("member") and "member" in book.discounts else "",
+    if text:
+        flags = sorted(set(flags) | {f for f, pat in FLAG_PATTERNS.items() if pat.search(text)})
+    zm = ZIP_RE.search(text or "") or ZIP_RE.search(str(parsed.get("zip") or ""))
+    zip_code = zm.group(1) if zm else str((previous or {}).get("zip") or "")
+    member = bool(parsed.get("member")) or bool(text and MEMBER_RE.search(text))
+    args = {"items": items, "zip": zip_code, "flags": flags,
+            "customer_tier": "member" if member and "member" in book.discounts else "",
             "unpriced": unpriced}
     return IntakeResult(args=args, customer_name=str(parsed.get("customer_name") or "").strip(),
                         site=str(parsed.get("site_address") or "").strip(), source="model", notes=notes,

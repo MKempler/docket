@@ -1,0 +1,194 @@
+# Docket evaluation set: 40 messy job descriptions against demo_data/pricebook.yaml.
+# Ground truth is hand-written: the price-book items, quantities, flags, tier and ZIP a careful owner would
+# quote. `needs_price: true` means the correct answer is to flag work (or a ZIP) the price book cannot price.
+# Expected totals are computed by Docket's engine from this ground truth (engine arithmetic is checked
+# against hand-calculated cases in tests/test_pricing.py).
+
+jobs:
+  - id: 1
+    text: "Dana Henderson, 14 Maple St 62707 - 50 gal gas water heater swap, permit, haul away the old unit"
+    zip: "62707"
+    items: {WH50-REPLACE: 1, PERMIT-WH: 1, HAULAWAY: 1}
+  - id: 2
+    text: "Kim Lee 62711 two toilets rocking, need a pull and reset on both"
+    zip: "62711"
+    items: {TOILET-RESET: 2}
+  - id: 3
+    text: "Mike O'Brien 62712, new kitchen faucet plus a disposal install, he wants it done tonight after hours"
+    zip: "62712"
+    items: {FAUCET-KITCHEN: 1, DISPOSAL-INSTALL: 1}
+    flags: [after_hours]
+  - id: 4
+    text: "Pat Jones 62629 main line backing up, snake it and run the camera down it"
+    zip: "62629"
+    items: {DRAIN-CLEAR: 1, CAMERA: 1}
+  - id: 5
+    text: "Grace Liu 62703 shutoff under the kitchen sink is leaking everywhere, emergency"
+    zip: "62703"
+    items: {SHUTOFF-REPLACE: 1}
+    flags: [emergency]
+  - id: 6
+    text: "Sam Patel 62704 replace the upstairs toilet and haul the old one off"
+    zip: "62704"
+    items: {TOILET-REPLACE: 1, HAULAWAY: 1}
+  - id: 7
+    text: "Ray Ortiz 62701, repipe the bathroom, about 38 feet of half inch PEX, he's a member"
+    zip: "62701"
+    items: {REPIPE-PEX12: 38}
+    tier: member
+  - id: 8
+    text: "Ana Ruiz, 62661, kitchen sink clogged again, she can only do saturday"
+    zip: "62661"
+    items: {DRAIN-CLEAR: 1}
+    flags: [weekend]
+  - id: 9
+    text: "Tom Becker 62702: replace 3 shutoff valves (laundry and both toilets)"
+    zip: "62702"
+    items: {SHUTOFF-REPLACE: 3}
+  - id: 10
+    text: "Lisa Grant 62707: water heater died, needs replacing asap. expansion tank comes with it right? permit too"
+    zip: "62707"
+    items: {WH50-REPLACE: 1, PERMIT-WH: 1}
+    flags: [emergency]
+  - id: 11
+    text: "Omar Haddad 62670 - 120 ft PEX repipe, whole house, member, wants to start on the weekend"
+    zip: "62670"
+    items: {REPIPE-PEX12: 120}
+    flags: [weekend]
+    tier: member
+  - id: 12
+    text: "Jen Wu 62711, install a new garbage disposal and swap out the p-trap kit while you're there"
+    zip: "62711"
+    items: {DISPOSAL-INSTALL: 1, PTRAP: 1}
+  - id: 13
+    text: "Chris Doyle 62703 needs 2 hours of labor to track down a leak behind the washer"
+    zip: "62703"
+    items: {LABOR: 2}
+  - id: 14
+    text: "Bea Silva 62712: replace toilet x2, one in each bath, haul both old ones away"
+    zip: "62712"
+    items: {TOILET-REPLACE: 2, HAULAWAY: 2}
+  - id: 15
+    text: "Hank Moore 62629 emergency, drain backing up into the basement on a sunday. clear it and camera it"
+    zip: "62629"
+    items: {DRAIN-CLEAR: 1, CAMERA: 1}
+    flags: [emergency, weekend]
+  - id: 16
+    text: "Ivy Chen 62701 kitchen faucet replacement, she's a member"
+    zip: "62701"
+    items: {FAUCET-KITCHEN: 1}
+    tier: member
+  - id: 17
+    text: "Jack Ross 62707 reset the toilet in the half bath, evening appointment"
+    zip: "62707"
+    items: {TOILET-RESET: 1}
+    flags: [after_hours]
+  - id: 18
+    text: "Kara Novak 62704: 15 ft of 3/4 inch PEX pipe to run a new line to the garage, plus 2 hrs labor"
+    zip: "62704"
+    items: {PEX34: 15, LABOR: 2}
+  - id: 19
+    text: "Leo Park 62711 water heater replacement, permit, haul away, he's a member, saturday"
+    zip: "62711"
+    items: {WH50-REPLACE: 1, PERMIT-WH: 1, HAULAWAY: 1}
+    flags: [weekend]
+    tier: member
+  - id: 20
+    text: "Maya Ford 62661 one kitchen faucet and two extra braided supply lines for the bathroom sink"
+    zip: "62661"
+    items: {FAUCET-KITCHEN: 1, SUPPLY: 2}
+  - id: 21
+    text: "Nate Cole 62702 wants a tankless water heater installed"
+    zip: "62702"
+    items: {}
+    needs_price: true
+  - id: 22
+    text: "Olga Ivanova 62707 fix the lawn sprinkler system"
+    zip: "62707"
+    items: {}
+    needs_price: true
+  - id: 23
+    text: "Paul Reed 62999 clogged drain"
+    zip: "62999"
+    items: {DRAIN-CLEAR: 1}
+    needs_price: true
+  - id: 24
+    text: "Quinn Hart 62703 replace toilet and also re-tile the bathroom floor"
+    zip: "62703"
+    items: {TOILET-REPLACE: 1}
+    needs_price: true
+  - id: 25
+    text: "Rosa Diaz 62712, 25 feet of half inch PEX repipe, after hours"
+    zip: "62712"
+    items: {REPIPE-PEX12: 25}
+    flags: [after_hours]
+  - id: 26
+    text: "Sean Burke 62629, shutoff valve replacement x4 and a camera inspection of the sewer line"
+    zip: "62629"
+    items: {SHUTOFF-REPLACE: 4, CAMERA: 1}
+  - id: 27
+    text: "Tina Moss 62670 disposal install, she's a member, weekend please"
+    zip: "62670"
+    items: {DISPOSAL-INSTALL: 1}
+    flags: [weekend]
+    tier: member
+  - id: 28
+    text: "Uma Shah 62701 just the sewer camera inspection, nothing else"
+    zip: "62701"
+    items: {CAMERA: 1}
+  - id: 29
+    text: "Vic Lane 62704 3 toilet resets plus 1 new toilet, haul away the old one"
+    zip: "62704"
+    items: {TOILET-RESET: 3, TOILET-REPLACE: 1, HAULAWAY: 1}
+  - id: 30
+    text: "Wes Grant 62711 emergency water heater swap, it's flooding the garage. permit and haul away"
+    zip: "62711"
+    items: {WH50-REPLACE: 1, PERMIT-WH: 1, HAULAWAY: 1}
+    flags: [emergency]
+  - id: 31
+    text: "Xena Kim 62707 slow drain in the tub, snake it out"
+    zip: "62707"
+    items: {DRAIN-CLEAR: 1}
+  - id: 32
+    text: "Yusuf Ali 62661, 60 ft PEX repipe and a new kitchen faucet, he's a member"
+    zip: "62661"
+    items: {REPIPE-PEX12: 60, FAUCET-KITCHEN: 1}
+    tier: member
+  - id: 33
+    text: "Zoe Hunt 62712 two disposals, one in the kitchen and one at the wet bar"
+    zip: "62712"
+    items: {DISPOSAL-INSTALL: 2}
+  - id: 34
+    text: "Adam Fox 62702, 7.5 ft of PEX repipe under the kitchen"
+    zip: "62702"
+    items: {REPIPE-PEX12: 7.5}
+  - id: 35
+    text: "Beth Lowe 62703 replace water heater. no permit needed per the county, and she's keeping the old unit"
+    zip: "62703"
+    items: {WH50-REPLACE: 1}
+  - id: 36
+    text: "Carl Yates 62629 toilet replacement, saturday, he's a member"
+    zip: "62629"
+    items: {TOILET-REPLACE: 1}
+    flags: [weekend]
+    tier: member
+  - id: 37
+    text: "Dina Rao 62711 3.5 hours labor to rebuild a shower valve"
+    zip: "62711"
+    items: {LABOR: 3.5}
+  - id: 38
+    text: "Eli Stone 62704 install a whole-house water softener"
+    zip: "62704"
+    items: {}
+    needs_price: true
+  - id: 39
+    text: "Faye Moon 62670, after-hours call: shutoff valve and a toilet reset"
+    zip: "62670"
+    items: {SHUTOFF-REPLACE: 1, TOILET-RESET: 1}
+    flags: [after_hours]
+  - id: 40
+    text: "Gus Kerr 62707 kitchen faucet, disposal, 2 shutoff valves, haul away the old disposal. member. emergency"
+    zip: "62707"
+    items: {FAUCET-KITCHEN: 1, DISPOSAL-INSTALL: 1, SHUTOFF-REPLACE: 2, HAULAWAY: 1}
+    flags: [emergency]
+    tier: member

@@ -108,3 +108,20 @@ def test_chatty_variants():
     assert r.args["flags"] == ["after_hours"]
     r = parse_words(BOOK, "toilet's rocking at the Garcias, 62701, pull and reset it")
     assert codes(r) == {"TOILET-RESET": "1"} and r.args["unpriced"] == []
+
+
+def test_guards_fix_the_model_mistakes_seen_in_the_eval():
+    # The model's typical slips: drops the ZIP, invents 2 hours of labor and a haul-away fee, misses
+    # "member" and "after hours". Code reads the words and corrects all of them.
+    llm = FakeLLM({"items": [{"code": "SHUTOFF-REPLACE", "qty": 1}, {"code": "LABOR", "qty": 2},
+                             {"code": "HAULAWAY", "qty": 1}], "flags": [], "member": False})
+    r = intake(BOOK, "Walt Ames 62707 replace the leaking shutoff valve, evening visit, he's a member", llm)
+    assert codes(r) == {"SHUTOFF-REPLACE": "1"}
+    assert r.args["zip"] == "62707" and r.args["flags"] == ["after_hours"] and r.args["customer_tier"] == "member"
+    assert any("labor" in n for n in r.notes) and any("haul" in n for n in r.notes)
+
+
+def test_guards_keep_what_the_owner_actually_said():
+    llm = FakeLLM({"items": [{"code": "LABOR", "qty": 1.5}, {"code": "HAULAWAY", "qty": 1}], "zip": "62712"})
+    r = intake(BOOK, "Pete Hall: 1.5 hours labor and haul away the old regulator", llm)
+    assert codes(r) == {"LABOR": "1.5", "HAULAWAY": "1"} and r.args["zip"] == "62712"
