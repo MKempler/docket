@@ -1,0 +1,101 @@
+# Docket demo price book: Copperline Plumbing & Drain (a fictional company).
+# Every price Docket quotes comes from this file. Money values are quoted strings so they are
+# exact decimals. Edit freely; run /pricebook validate after changes.
+
+business:
+  name: Copperline Plumbing & Drain
+  phone: "(555) 010-4477"
+  email: office@copperline.example
+  license: "M-40213 (demo)"
+  address: "1200 Example Ave, Springfield"
+
+currency: USD
+
+tax:
+  name: Sales tax
+  rate: "0.0825"          # applied to materials only; labor and fees are not taxed
+  applies_to: [materials]
+
+labor:
+  rate: "135.00"          # per hour
+  minimum_hours: "1.0"    # a job with any labor bills at least this many hours
+
+multipliers:              # labor only; when several apply, the highest one wins
+  after_hours: "1.5"
+  weekend: "1.25"
+  emergency: "2.0"
+
+discounts:
+  member: { rate: "0.10", applies_to: labor, label: "Member discount" }
+
+service_call:
+  code: SERVICE-CALL
+  name: Service call
+  amount: "89.00"
+
+travel_zones:             # by ZIP code; a ZIP not listed needs a price from the owner
+  A: { amount: "0.00",  zips: ["62701", "62702", "62703", "62704"] }
+  B: { amount: "35.00", zips: ["62707", "62711", "62712"] }
+  C: { amount: "65.00", zips: ["62629", "62661", "62670"] }
+
+materials:                # price = cost x (1 + markup), rounded to the cent
+  PEX12:    { name: '1/2" PEX pipe',               unit: ft,   cost: "0.60",   markup: "1.00" }
+  PEX34:    { name: '3/4" PEX pipe',               unit: ft,   cost: "0.95",   markup: "1.00" }
+  PEXFIT:   { name: "PEX fitting",                  unit: each, cost: "2.50",   markup: "1.00" }
+  SHUTOFF:  { name: "1/4-turn shutoff valve",       unit: each, cost: "12.00",  markup: "0.75" }
+  WH50G:    { name: "50-gal gas water heater",      unit: each, cost: "780.00", markup: "0.35" }
+  WHKIT:    { name: "Water heater install kit",     unit: each, cost: "65.00",  markup: "0.50" }
+  EXPTANK:  { name: "2-gal expansion tank",         unit: each, cost: "48.00",  markup: "0.50" }
+  TOILET:   { name: "Two-piece toilet",             unit: each, cost: "210.00", markup: "0.40" }
+  WAXRING:  { name: "Wax ring and closet bolts",    unit: each, cost: "8.00",   markup: "1.00" }
+  SUPPLY:   { name: "Braided supply line",          unit: each, cost: "9.00",   markup: "1.00" }
+  PTRAP:    { name: '1-1/2" P-trap kit',            unit: each, cost: "14.00",  markup: "1.00" }
+  DISPOSAL: { name: "3/4 HP garbage disposal",      unit: each, cost: "165.00", markup: "0.40" }
+  FAUCETK:  { name: "Kitchen faucet",               unit: each, cost: "140.00", markup: "0.40" }
+
+fees:                     # flat amounts, not taxed
+  CAMERA:   { name: "Sewer camera inspection",      unit: each, amount: "175.00" }
+  HAULAWAY: { name: "Haul away old fixture",        unit: each, amount: "35.00" }
+  PERMIT-WH: { name: "Water heater permit",         unit: each, amount: "85.00" }
+
+assemblies:               # labor hours and materials per unit of the assembly
+  WH50-REPLACE:
+    name: Replace 50-gal gas water heater
+    unit: each
+    labor_hours: "3.0"
+    materials: [{ code: WH50G, qty: "1" }, { code: WHKIT, qty: "1" }, { code: EXPTANK, qty: "1" }]
+  TOILET-REPLACE:
+    name: Replace toilet
+    unit: each
+    labor_hours: "1.5"
+    materials: [{ code: TOILET, qty: "1" }, { code: WAXRING, qty: "1" }, { code: SUPPLY, qty: "1" }]
+  TOILET-RESET:
+    name: Pull and reset toilet
+    unit: each
+    labor_hours: "1.0"
+    materials: [{ code: WAXRING, qty: "1" }]
+  FAUCET-KITCHEN:
+    name: Install kitchen faucet
+    unit: each
+    labor_hours: "1.25"
+    materials: [{ code: FAUCETK, qty: "1" }, { code: SUPPLY, qty: "2" }]
+  DISPOSAL-INSTALL:
+    name: Install garbage disposal
+    unit: each
+    labor_hours: "1.0"
+    materials: [{ code: DISPOSAL, qty: "1" }]
+  SHUTOFF-REPLACE:
+    name: Replace shutoff valve
+    unit: each
+    labor_hours: "0.5"
+    materials: [{ code: SHUTOFF, qty: "1" }]
+  REPIPE-PEX12:
+    name: 'Repipe with 1/2" PEX'
+    unit: ft
+    labor_hours: "0.08"
+    materials: [{ code: PEX12, qty: "1" }, { code: PEXFIT, qty: "0.25" }]   # one fitting per 4 ft
+  DRAIN-CLEAR:
+    name: Clear drain line
+    unit: each
+    labor_hours: "1.0"
+    materials: []

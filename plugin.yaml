@@ -1,0 +1,14 @@
+name: docket
+version: 0.1.0
+description: "Quotes for trades businesses: exact prices from your own price book, approve with one tap, the customer accepts, the job is booked."
+author: Max Kempler
+manifest_version: 2
+api_version: 1
+license: MIT
+homepage: https://github.com/MKempler/jobbook
+tags: [business, trades, quotes, telegram]
+requires_hermes: ">=0.22.7"
+provides_tools:
+  - docket_price_preview
+provides_hooks:
+  - pre_tool_call
