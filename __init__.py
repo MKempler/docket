@@ -297,6 +297,23 @@ def _make_gate(ctx):
     return pre_tool_call
 
 
+def _hint_hook(user_message: str = "", **kwargs):
+    """Point the model at Docket's tools on quoting messages only (Hermes defers plugin tools)."""
+    try:
+        from . import runtime
+        from .hints import hint_for
+        from .intake import _find_items, _tokens
+        mentions = False
+        book, errors, _, _ = runtime.book()
+        if book is not None and not errors:
+            aliases = sorted(((tuple(_tokens(p)), c) for p, c in book.alias_index().items()), key=lambda kv: -len(kv[0]))
+            mentions = bool(_find_items(user_message or "", aliases, set(book.assemblies)))
+        text = hint_for(user_message or "", mentions_work=mentions)
+        return {"context": text} if text else None
+    except Exception:
+        return None
+
+
 def _docket_command(raw_args: str = "", **kwargs) -> str:
     return (f"Docket {VERSION}\n  /quote <job>   price and send a quote\n  /jobs          your pipeline\n"
             f"  /pricebook     show or validate your price book")
@@ -329,6 +346,7 @@ def register(ctx):
         ctx.register_tool(name=name, toolset="docket", schema=schema, handler=_report_tool(name),
                           description=schema["description"].split(".")[0], emoji="📋")
     ctx.register_hook("pre_tool_call", _make_gate(ctx))
+    ctx.register_hook("pre_llm_call", _hint_hook)
     _register_blueprints(ctx)
     _register_channels(ctx)
     ctx.register_command("quote", make_quote_command(ctx), description="Price, revise or send a quote",

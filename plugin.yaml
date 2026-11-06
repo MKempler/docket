@@ -18,3 +18,4 @@ provides_tools:
   - docket_pipeline
 provides_hooks:
   - pre_tool_call
+  - pre_llm_call
