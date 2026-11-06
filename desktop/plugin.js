@@ -52,6 +52,13 @@ const useQuote = id =>
     refetchInterval: 20000
   })
 
+const qtyLabel = line => {
+  const q = Number(line.qty)
+  const unit = line.unit && line.unit !== 'each' ? ` ${line.unit}` : ''
+  if (!Number.isFinite(q) || (q === 1 && !unit) || line.kind === 'discount') return ''
+  return ` × ${String(q)}${unit}`
+}
+
 const STATUS_TEXT = {
   draft: 'Draft', sent: 'Sent', viewed: 'Opened', accepted: 'Accepted', scheduled: 'Booked',
   in_progress: 'In progress', done: 'Done', declined: 'Declined', discarded: 'Discarded', cancelled: 'Cancelled',
@@ -104,9 +111,9 @@ function Card({ item, currency, selected, onOpen }) {
   })
 }
 
-function Column({ column, currency, selectedId, onOpen }) {
+function Column({ column, currency, selectedId, onOpen, compact }) {
   return jsxs('div', {
-    className: 'flex min-w-[220px] flex-1 flex-col gap-2',
+    className: cn('flex flex-1 flex-col gap-2', compact ? 'min-w-[170px]' : 'min-w-[220px]'),
     children: [
       jsxs('div', {
         className: 'flex items-baseline justify-between px-0.5 text-[0.6875rem] uppercase tracking-wide text-(--ui-text-tertiary)',
@@ -140,7 +147,10 @@ function Lines({ quote, currency }) {
             jsxs('div', {
               className: 'flex justify-between gap-3 text-[0.8125rem]',
               children: [
-                jsx('span', { children: line.description }),
+                jsxs('span', {
+                  children: [line.description,
+                    jsx('span', { className: 'text-(--ui-text-tertiary)', children: qtyLabel(line) })]
+                }),
                 jsx('span', {
                   className: 'shrink-0 tabular-nums',
                   children: line.kind === 'needs_price' ? 'needs price' : money(line.amount, currency)
@@ -331,7 +341,7 @@ function JobsPage() {
           jsx('div', {
             className: 'flex gap-3 overflow-x-auto pb-2',
             children: data.columns.map(col =>
-              jsx(Column, { column: col, currency: data.currency, selectedId: selected, onOpen: setSelected }, col.key))
+              jsx(Column, { column: col, currency: data.currency, selectedId: selected, onOpen: setSelected, compact: selected != null }, col.key))
           }),
           showClosed && data.closed?.length
             ? jsx(Column, {
@@ -342,7 +352,7 @@ function JobsPage() {
         ]
       }),
       selected != null
-        ? jsx('div', { className: 'w-[380px] shrink-0', children: jsx(Detail, { id: selected, currency: data.currency, onClose: () => setSelected(null) }) })
+        ? jsx('div', { className: 'w-[360px] shrink-0', children: jsx(Detail, { id: selected, currency: data.currency, onClose: () => setSelected(null) }) })
         : null
     ]
   })
