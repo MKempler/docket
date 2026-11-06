@@ -116,7 +116,7 @@ function Column({ column, currency, selectedId, onOpen, compact }) {
     className: cn('flex flex-1 flex-col gap-2', compact ? 'min-w-[170px]' : 'min-w-[220px]'),
     children: [
       jsxs('div', {
-        className: 'flex items-baseline justify-between px-0.5 text-[0.6875rem] uppercase tracking-wide text-(--ui-text-tertiary)',
+        className: 'flex items-baseline justify-between gap-2 whitespace-nowrap px-0.5 text-[0.6875rem] uppercase tracking-wide text-(--ui-text-tertiary)',
         children: [
           jsx('span', { children: `${column.label} · ${column.count}` }),
           jsx('span', { className: 'tabular-nums normal-case', children: column.count ? money(column.total, currency) : '' })
@@ -311,7 +311,7 @@ function JobsPage() {
   }
 
   return jsxs('div', {
-    className: 'flex h-full min-h-0',
+    className: 'relative flex h-full min-h-0',
     children: [
       jsxs('div', {
         className: 'flex min-w-0 flex-1 flex-col gap-4 overflow-auto p-5',
@@ -341,7 +341,7 @@ function JobsPage() {
           jsx('div', {
             className: 'flex gap-3 overflow-x-auto pb-2',
             children: data.columns.map(col =>
-              jsx(Column, { column: col, currency: data.currency, selectedId: selected, onOpen: setSelected, compact: selected != null }, col.key))
+              jsx(Column, { column: col, currency: data.currency, selectedId: selected, onOpen: setSelected }, col.key))
           }),
           showClosed && data.closed?.length
             ? jsx(Column, {
@@ -352,7 +352,7 @@ function JobsPage() {
         ]
       }),
       selected != null
-        ? jsx('div', { className: 'w-[360px] shrink-0', children: jsx(Detail, { id: selected, currency: data.currency, onClose: () => setSelected(null) }) })
+        ? jsx('div', { className: 'absolute inset-y-0 right-0 z-10 w-[min(400px,92%)] bg-background shadow-xl', children: jsx(Detail, { id: selected, currency: data.currency, onClose: () => setSelected(null) }) })
         : null
     ]
   })
