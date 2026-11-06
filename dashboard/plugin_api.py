@@ -21,6 +21,7 @@ COLUMNS = [("draft", "Draft"), ("sent", "Sent"), ("accepted", "Accepted"), ("sch
            ("in_progress", "In progress"), ("done", "Done")]
 CLOSED = {"declined", "expired", "discarded", "cancelled", "invoiced", "paid"}
 MOVES = {"in_progress": "Start job", "done": "Mark done", "cancelled": "Cancel job"}
+DONE_TEXT = {"in_progress": "started", "done": "marked done", "cancelled": "cancelled"}
 
 
 def _module(name: str):
@@ -117,8 +118,8 @@ def act(quote_id: int, action: str, body: dict | None = None) -> dict[str, Any]:
             store.transition(quote_id, "scheduled", actor="owner", surface="desktop", scheduled_for=day.isoformat())
             return {"ok": True, "message": f"Q-{quote_id} booked for {day:%a %b} {day.day}"}
         if action in MOVES:
-            store.transition(quote_id, action, actor="owner", surface="desktop")
-            return {"ok": True, "message": f"Q-{quote_id}: {MOVES[action].lower()}"}
+            rec = store.transition(quote_id, action, actor="owner", surface="desktop")
+            return {"ok": True, "message": f"{rec.number} {rec.customer['name']} {DONE_TEXT[action]}"}
     except HTTPException:
         raise
     except Exception as exc:
