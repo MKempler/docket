@@ -54,6 +54,13 @@ OWNER_NOTIFIERS: list = []         # callables(event, record) — Telegram adds 
 def notify_owner(event: str, rec: Any) -> None:
     import logging
     logging.getLogger(__name__).info("Docket: %s %s (%s)", rec.number, event, rec.customer.get("name"))
+    try:
+        from .owner import event_card, push
+        card = event_card(require_book(), store().get(rec.id), event, store=store())
+        if card is not None:
+            push(store(), card)
+    except Exception:
+        logging.getLogger(__name__).exception("Docket owner card failed")
     for fn in list(OWNER_NOTIFIERS):
         try:
             fn(event, rec)
@@ -96,3 +103,26 @@ def llm(ctx: Any) -> Any:
     if inner is not None and INTAKE_TASK:
         return _TaskLLM(inner, INTAKE_TASK)
     return inner
+
+
+def render_pdf_fn():
+    try:
+        from .render import render_pdf
+        return render_pdf
+    except Exception:
+        return None
+
+
+def tap(data: str, platform: str, user_id: str):
+    """A button press from any platform, with this process's store, price book and accept page."""
+    from .owner import perform
+    return perform(data, platform=platform, user_id=user_id, store=store(), book=require_book(),
+                   outbox_root=outbox_root(), base_url=ensure_accept_server, render_pdf=render_pdf_fn())
+
+
+def push_quote_card(rec: Any, surface: str) -> bool:
+    """On a messaging platform with a registered owner, send the quote as a card with buttons."""
+    from .owner import CHANNELS, get_owner, push, quote_card
+    if surface not in CHANNELS or not CHANNELS[surface].live or not get_owner(store(), surface):
+        return False
+    return bool(push(store(), quote_card(require_book(), rec), platforms=(surface,)))

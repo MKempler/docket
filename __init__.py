@@ -110,6 +110,17 @@ def _make_quote_tool(ctx):
             else:
                 d = draft_from_words(store, book, words, llm=runtime.llm(ctx), actor="agent", surface="tool")
             rec = d.record
+            surface = ""
+            try:
+                surface = ctx.session_surface() or ""
+            except Exception:
+                pass
+            if runtime.push_quote_card(rec, surface):
+                return json.dumps({"ok": True, "quote_id": rec.number, "version": rec.version, "status": rec.status,
+                                   "card_sent": True, "complete": rec.complete, "notes": d.intake.notes,
+                                   "next": (f"The quote card for {rec.number} with Send/Edit/Discard buttons was just "
+                                            "sent to this chat. Tell the owner in one short line; do not repeat the "
+                                            "prices.")})
             return json.dumps({"ok": True, "quote_id": rec.number, "version": rec.version, "status": rec.status,
                                "complete": rec.complete, "total": rec.total, "text": owner_text(book, rec),
                                "notes": d.intake.notes, "questions": d.intake.questions,
@@ -147,7 +158,8 @@ REPORT_SCHEMAS = {
     "docket_followups": {
         "name": "docket_followups",
         "description": ("List quotes the customer has not answered for N+ days, oldest first, each with a suggested "
-                        "nudge. Read-only: it never contacts customers. Deliver its text to the owner as returned."),
+                        "nudge for the OWNER to send themselves. Read-only: Docket never contacts customers, so do not "
+                        "offer to send the nudges. Deliver its text to the owner as returned."),
         "parameters": {"type": "object", "properties": {
             "stale_days": {"type": "integer", "description": "Minimum days waiting (default 5)"}}},
     },
@@ -305,6 +317,7 @@ def register(ctx):
                           description=schema["description"].split(".")[0], emoji="📋")
     ctx.register_hook("pre_tool_call", _make_gate(ctx))
     _register_blueprints(ctx)
+    _register_channels(ctx)
     ctx.register_command("quote", make_quote_command(ctx), description="Price, revise or send a quote",
                          args_hint="<customer, ZIP, work> | show|revise|send|discard Q-1001")
     ctx.register_command("jobs", jobs, description="Your Docket quotes and jobs by status", args_hint="[status]")
@@ -314,3 +327,23 @@ def register(ctx):
                          args_hint="[serve|link <url>]")
     ctx.register_cli_command(name="docket", help="Docket: quotes for trades businesses", setup_fn=cli_setup,
                              handler_fn=cli_main, description="Run Docket's customer accept page and demo tools")
+
+
+def _register_channels(ctx):
+    """Owner cards with buttons on Telegram, Discord and Slack. Refused under plugins.isolation: host, in
+    which case Docket keeps working through slash commands and Hermes's own choice prompts."""
+    import re
+    from . import runtime
+    from .channels import DiscordChannel, SlackChannel, TelegramChannel
+    from .owner import register_channel
+    channels = [TelegramChannel(runtime.tap), DiscordChannel(runtime.tap), SlackChannel(runtime.tap)]
+    for channel in channels:
+        try:
+            ctx.register_platform_handler(channel.platform, channel.factory)
+            register_channel(channel)
+        except Exception as exc:
+            logger.info("Docket: %s buttons unavailable (%s)", channel.platform, exc)
+    try:
+        ctx.register_slack_action_handler(re.compile(r"^docket:"), channels[2].on_action)
+    except Exception as exc:
+        logger.info("Docket: Slack button handler unavailable (%s)", exc)

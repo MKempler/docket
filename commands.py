@@ -20,6 +20,7 @@ QUOTE_USAGE = """Docket quotes
   /quote revise Q-1001 <change>                          e.g. "add a shutoff valve, saturday"
   /quote send Q-1001                                     send it to the customer
   /quote discard Q-1001
+  /quote book Q-1001 2026-11-12                          schedule an accepted job
 Example: /quote Dana Henderson, 14 Maple St 62707, swap the 50 gallon gas water heater, permit and haul away"""
 
 ACTIONS = [
@@ -49,6 +50,16 @@ def _quote(ctx: Any, text: str, surface: str) -> str:
     store, book = runtime.store(), runtime.require_book()
     verb, _, rest = text.partition(" ")
     verb = verb.lower()
+    if verb == "book":
+        number, _, when = rest.strip().partition(" ")
+        from datetime import date as _date
+        try:
+            day = _date.fromisoformat(when.strip())
+        except ValueError:
+            return f"Give the date as YYYY-MM-DD, e.g. /quote book {number or 'Q-1001'} 2026-11-12"
+        rec = store.transition(parse_quote_id(number), "scheduled", actor="owner", surface=surface,
+                               scheduled_for=day.isoformat())
+        return f"📅 {rec.number} {rec.customer['name']} booked for {day:%A %b} {day.day}."
     if verb in {"show", "send", "discard", "revise"}:
         number, _, change = rest.strip().partition(" ")
         qid = parse_quote_id(number)
@@ -71,6 +82,9 @@ def _quote(ctx: Any, text: str, surface: str) -> str:
 
 def _offer(ctx: Any, store, book, d, surface: str, header: str = "") -> str:
     rec = d.record
+    notes = d.intake.notes + [f"Question: {q}" for q in d.intake.questions]
+    if runtime.push_quote_card(rec, surface):          # Telegram / Discord / Slack: card with buttons
+        return "\n".join(x for x in [header, *notes] if x)
     body = owner_text(book, rec)
     notes = d.intake.notes + [f"Question: {q}" for q in d.intake.questions]
     text = "\n".join(x for x in [header, body, *notes] if x)
@@ -122,6 +136,7 @@ DOCKET_HELP = """Docket
   /jobs [status]      your quotes and jobs by status
   /pricebook          show or validate your price book
   /docket demo        load the demo company (Copperline Plumbing & Drain); 'demo reset' wipes existing quotes first
+  /docket setup       run in Telegram, Discord or Slack: quote cards and customer pings come to this chat
   /docket serve       start the customer accept page in this session
   /docket link <url>  public base URL for customer links (e.g. your tunnel); 'local' to reset"""
 
@@ -132,6 +147,8 @@ def docket_admin(raw_args: str = "", **kwargs) -> str:
         verb = verb.lower()
         if verb == "serve":
             return f"Customer accept page: {runtime.ensure_accept_server()}  (runs while this Hermes process runs)"
+        if verb == "setup":
+            return setup_owner(kwargs)
         if verb == "demo":
             return run_demo(force=rest.strip().lower() == "reset")
         if verb == "link":
@@ -183,3 +200,19 @@ def run_demo(*, force: bool = False) -> str:
             "\n\nTry it (start a new session first so the tools load):\n"
             "  /quote Dana Henderson, 14 Maple St 62707, swap the 50 gallon gas water heater, permit and haul away\n"
             "  /jobs\n  /pricebook")
+
+
+def setup_owner(kwargs: dict) -> str:
+    from .owner import PLATFORMS, set_owner
+    platform = str(kwargs.get("platform") or "")
+    source = kwargs.get("source")
+    if platform not in PLATFORMS or source is None:
+        return ("Run /docket setup from your Telegram, Discord or Slack chat with Hermes. "
+                "Docket will send quote cards with buttons, and customer accept pings, to that chat.")
+    chat_id, user_id = str(getattr(source, "chat_id", "") or ""), str(getattr(source, "user_id", "") or "")
+    if not chat_id or not user_id:
+        return "Docket couldn't read this chat's id. Try again from a direct message with the bot."
+    set_owner(runtime.store(), platform, chat_id=chat_id, user_id=user_id,
+              thread_id=str(getattr(source, "thread_id", "") or ""))
+    return (f"Docket is set up on {platform.title()}. Quote cards and customer updates will come here, and only you "
+            f"can press their buttons. Try: /quote Dana Henderson, 14 Maple St 62707, water heater, permit")
