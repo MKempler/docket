@@ -54,48 +54,56 @@ materials:                # price = cost x (1 + markup), rounded to the cent
   FAUCETK:  { name: "Kitchen faucet",               unit: each, cost: "140.00", markup: "0.40" }
 
 fees:                     # flat amounts, not taxed
-  CAMERA:   { name: "Sewer camera inspection",      unit: each, amount: "175.00" }
-  HAULAWAY: { name: "Haul away old fixture",        unit: each, amount: "35.00" }
-  PERMIT-WH: { name: "Water heater permit",         unit: each, amount: "85.00" }
+  CAMERA:   { name: "Sewer camera inspection",      unit: each, amount: "175.00", aliases: ["camera", "camera inspection", "scope the line"] }
+  HAULAWAY: { name: "Haul away old fixture",        unit: each, amount: "35.00", aliases: ["haul away", "haul the old", "haul it away", "dispose of old"] }
+  PERMIT-WH: { name: "Water heater permit",         unit: each, amount: "85.00", aliases: ["permit"] }
 
 assemblies:               # labor hours and materials per unit of the assembly
   WH50-REPLACE:
     name: Replace 50-gal gas water heater
+    aliases: ["water heater", "hot water heater", "50 gal heater", "50 gallon heater", "heater swap", "replace heater"]
     unit: each
     labor_hours: "3.0"
     materials: [{ code: WH50G, qty: "1" }, { code: WHKIT, qty: "1" }, { code: EXPTANK, qty: "1" }]
   TOILET-REPLACE:
     name: Replace toilet
+    aliases: ["replace toilet", "new toilet", "toilet replacement"]
     unit: each
     labor_hours: "1.5"
     materials: [{ code: TOILET, qty: "1" }, { code: WAXRING, qty: "1" }, { code: SUPPLY, qty: "1" }]
   TOILET-RESET:
     name: Pull and reset toilet
+    aliases: ["reset toilet", "pull and reset", "toilet reset", "rocking toilet", "wax ring"]
     unit: each
     labor_hours: "1.0"
     materials: [{ code: WAXRING, qty: "1" }]
   FAUCET-KITCHEN:
     name: Install kitchen faucet
+    aliases: ["kitchen faucet", "faucet install", "new faucet"]
     unit: each
     labor_hours: "1.25"
     materials: [{ code: FAUCETK, qty: "1" }, { code: SUPPLY, qty: "2" }]
   DISPOSAL-INSTALL:
     name: Install garbage disposal
+    aliases: ["garbage disposal", "disposal"]
     unit: each
     labor_hours: "1.0"
     materials: [{ code: DISPOSAL, qty: "1" }]
   SHUTOFF-REPLACE:
     name: Replace shutoff valve
+    aliases: ["shutoff valve", "shut off valve", "shutoff", "angle stop"]
     unit: each
     labor_hours: "0.5"
     materials: [{ code: SHUTOFF, qty: "1" }]
   REPIPE-PEX12:
     name: 'Repipe with 1/2" PEX'
+    aliases: ["repipe", "re-pipe", "pex"]
     unit: ft
     labor_hours: "0.08"
     materials: [{ code: PEX12, qty: "1" }, { code: PEXFIT, qty: "0.25" }]   # one fitting per 4 ft
   DRAIN-CLEAR:
     name: Clear drain line
+    aliases: ["clogged drain", "clear drain", "drain clog", "snake drain", "blocked drain", "slow drain"]
     unit: each
     labor_hours: "1.0"
     materials: []

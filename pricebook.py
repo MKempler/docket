@@ -22,6 +22,7 @@ class Material:
     unit: str
     cost: Decimal
     markup: Decimal
+    aliases: tuple[str, ...] = ()
 
     @property
     def price(self) -> Decimal:
@@ -35,6 +36,7 @@ class Fee:
     name: str
     unit: str
     amount: Decimal
+    aliases: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -50,6 +52,7 @@ class Assembly:
     unit: str
     labor_hours: Decimal
     materials: tuple[Component, ...]
+    aliases: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -88,6 +91,15 @@ class PriceBook:
     def zone_for_zip(self, zip_code: str) -> Zone | None:
         z = (zip_code or "").strip()
         return next((zone for zone in self.zones if z in zone.zips), None)
+
+    def alias_index(self) -> dict[str, str]:
+        """lower-cased alias or item name -> code, for the deterministic fallback parser."""
+        index: dict[str, str] = {}
+        for group in (self.assemblies, self.fees, self.materials):
+            for code, entry in group.items():
+                for phrase in (entry.name, *entry.aliases):
+                    index.setdefault(" ".join(phrase.lower().split()), code)
+        return index
 
     def lookup(self, code: str) -> tuple[str, Any] | None:
         c = (code or "").strip().upper()
@@ -159,6 +171,15 @@ class _Reader:
             self.err(path, f"must be {'greater than' if not allow_zero else 'at least'} 0, got {raw!r}", node, key)
             return None
         return value
+
+    def aliases(self, node: Any, path: str) -> tuple[str, ...]:
+        raw = node.get("aliases") if isinstance(node, dict) else None
+        if raw is None:
+            return ()
+        if not isinstance(raw, list) or not all(isinstance(a, str) and a.strip() for a in raw):
+            self.err(f"{path}.aliases", "must be a list of phrases", node, "aliases")
+            return ()
+        return tuple(" ".join(a.lower().split()) for a in raw)
 
     def text(self, node: Any, key: str, path: str, *, required: bool = True) -> str:
         value = node.get(key) if isinstance(node, dict) else None
@@ -271,7 +292,7 @@ def parse_pricebook(text: str, source: str = "<text>") -> tuple[PriceBook | None
         markup = r.money(node, "markup", path, required=False) or Decimal(0)
         name, unit = r.text(node, "name", path), r.text(node, "unit", path)
         if cost is not None and name and unit:
-            materials[c] = Material(c, name, unit, cost, markup)
+            materials[c] = Material(c, name, unit, cost, markup, r.aliases(node, path))
 
     fees: dict[str, Fee] = {}
     fee_node = data.get("fees") or {}
@@ -280,7 +301,7 @@ def parse_pricebook(text: str, source: str = "<text>") -> tuple[PriceBook | None
         amount = r.money(node, "amount", path)
         name = r.text(node, "name", path)
         if amount is not None and name:
-            fees[c] = Fee(c, name, str((node or {}).get("unit") or "each"), amount)
+            fees[c] = Fee(c, name, str((node or {}).get("unit") or "each"), amount, r.aliases(node, path))
 
     assemblies: dict[str, Assembly] = {}
     asm_node = data.get("assemblies") or {}
@@ -300,11 +321,18 @@ def parse_pricebook(text: str, source: str = "<text>") -> tuple[PriceBook | None
             if qty is not None:
                 comps.append(Component(mcode, qty))
         if hours is not None and name and unit:
-            assemblies[c] = Assembly(c, name, unit, hours, tuple(comps))
+            assemblies[c] = Assembly(c, name, unit, hours, tuple(comps), r.aliases(node, path))
 
     clashes = (set(materials) & set(fees)) | (set(materials) & set(assemblies)) | (set(fees) & set(assemblies))
     for code in sorted(clashes):
         r.err(code, "code is used in more than one section; codes must be unique")
+    owners: dict[str, str] = {}
+    for group in (assemblies, fees, materials):
+        for code, entry in group.items():
+            for phrase in entry.aliases:
+                if phrase in owners and owners[phrase] != code:
+                    r.err(f"{code}.aliases", f"alias {phrase!r} is also used by {owners[phrase]}")
+                owners.setdefault(phrase, code)
     if "LABOR" in set(materials) | set(fees) | set(assemblies):
         r.err("LABOR", "is reserved for hourly labor")
 
