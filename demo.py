@@ -61,24 +61,29 @@ def seed(store: Store, book: PriceBook, outbox_root: Path, *, force: bool = Fals
                 continue
             when = ""
             if step == "scheduled" and sched:
-                when = (now + timedelta(days=int(sched))).date().isoformat()
+                booked = (now + timedelta(days=int(sched))).date()
+                while booked.weekday() == 6:           # no Sunday bookings, same rule as the booking buttons
+                    booked += timedelta(days=1 if int(sched) > 0 else -1)
+                when = booked.isoformat()
             actor = "customer" if step in {"viewed", "accepted", "declined"} else "owner"
             store.transition(rec.id, step, actor=actor, surface="demo",
                              scheduled_for=when if step == "scheduled" else None)
-        _backdate(store, rec.id, now - timedelta(days=days_ago))
+        _backdate(store, rec.id, now - timedelta(days=days_ago), now)
         made.append(f"{rec.number} {store.get(rec.id).customer['name']}: {target}")
     store.set_meta("demo_seeded", now.isoformat())
     return made
 
 
-def _backdate(store: Store, quote_id: int, start: datetime) -> None:
-    """Spread this quote's events from `start` forward, one step per ~day, keeping their order."""
+def _backdate(store: Store, quote_id: int, start: datetime, now: datetime) -> None:
+    """Spread this quote's events from `start` towards `now`, in order, never past `now` (at most ~20 h apart)."""
     with store.lock, store.conn:
         ids = [r[0] for r in store.conn.execute("SELECT id FROM events WHERE quote_id = ? ORDER BY id", (quote_id,))]
+        span = (now - start) * 0.8                    # leave the newest step comfortably in the past
+        step = min(timedelta(hours=20), span / max(len(ids) - 1, 1))
         for i, eid in enumerate(ids):
-            ts = (start + timedelta(hours=20 * i)).isoformat()
+            ts = (start + step * i).isoformat()
             store.conn.execute("UPDATE events SET at = ? WHERE id = ?", (ts, eid))
         first = (start).isoformat()
-        last = (start + timedelta(hours=20 * max(len(ids) - 1, 0))).isoformat()
+        last = (start + step * max(len(ids) - 1, 0)).isoformat()
         store.conn.execute("UPDATE quotes SET created_at = ?, updated_at = ? WHERE id = ?", (first, last, quote_id))
         store.conn.execute("UPDATE quote_versions SET created_at = ? WHERE quote_id = ?", (first, quote_id))

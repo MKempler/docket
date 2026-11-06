@@ -34,9 +34,9 @@ def test_followups_lists_only_stale_open_quotes(store):
 
 
 def test_run_sheet_lists_jobs_and_truck_load(store):
-    r = reports.run_sheet(store, day=date(2026, 11, 8))
+    r = reports.run_sheet(store, day=date(2026, 11, 9))
     assert r["count"] == 1 and "Pat Jones" in r["text"] and "5 Cedar Ct" in r["text"]
-    assert reports.run_sheet(store, day=date(2026, 11, 9))["count"] == 0
+    assert reports.run_sheet(store, day=date(2026, 11, 8))["count"] == 0
 
 
 def test_pipeline_numbers(store):

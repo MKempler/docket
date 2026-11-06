@@ -12,6 +12,7 @@ import argparse
 import json
 import sys
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -65,6 +66,7 @@ class OpenAICompatLLM:
     def __init__(self, base_url: str, model: str, api_key: str = "", reasoning_effort: str = "none"):
         self.base_url, self.model, self.api_key, self.effort = base_url.rstrip("/"), model, api_key, reasoning_effort
         self.calls: list[float] = []
+        self.failures = 0
 
     def complete_structured(self, *, instructions, input, json_schema=None, schema_name=None, temperature=0,
                             timeout=180.0, **_):
@@ -80,7 +82,15 @@ class OpenAICompatLLM:
             headers["Authorization"] = f"Bearer {self.api_key}"
         t = time.time()
         req = urllib.request.Request(f"{self.base_url}/chat/completions", json.dumps(body).encode(), headers)
-        data = json.load(urllib.request.urlopen(req, timeout=timeout))
+        for attempt in range(4):                     # survive a model server restart (e.g. an auto-update)
+            try:
+                data = json.load(urllib.request.urlopen(req, timeout=timeout))
+                break
+            except urllib.error.URLError as exc:
+                if attempt == 3 or "refused" not in str(exc).lower():
+                    self.failures += 1
+                    raise
+                time.sleep(15 * (attempt + 1))
         self.calls.append(time.time() - t)
         content = data["choices"][0]["message"].get("content") or ""
         try:
@@ -166,13 +176,15 @@ def run(args) -> dict:
     summary = {arm: sum(1 for r in rows if r[arm]["ok"]) for arm in ("bare", "docket", "parser")}
     result = {"jobs_file": args.jobs, "model": args.model, "base_url": args.base_url, "reasoning_effort": args.reasoning_effort,
               "ran_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "jobs": len(rows),
-              "score": summary, "median_call_s": sorted(llm.calls)[len(llm.calls) // 2] if llm.calls else None,
+              "score": summary, "model_call_failures": llm.failures, "valid": llm.failures == 0, "median_call_s": sorted(llm.calls)[len(llm.calls) // 2] if llm.calls else None,
               "rows": rows}
     out_dir = HERE / "results"
     out_dir.mkdir(exist_ok=True)
     name = (f"{datetime.now():%Y%m%d-%H%M}-{Path(args.jobs).stem}-"
             f"{args.model.replace(':', '_').replace('/', '_')}.json")
     (out_dir / name).write_text(json.dumps(result, indent=2))
+    if llm.failures:
+        print(f"\nINVALID RUN: {llm.failures} model call(s) failed; scores below are not comparable.")
     print(f"\n{args.model}: bare model {summary['bare']}/{len(rows)} · Docket {summary['docket']}/{len(rows)} · "
           f"Docket parser (no model) {summary['parser']}/{len(rows)}  -> evals/results/{name}")
     return result
