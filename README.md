@@ -6,7 +6,7 @@
   <a href="https://hermes-agent.nousresearch.com"><img alt="Hermes Agent plugin" src="https://img.shields.io/badge/Hermes%20Agent-plugin-2a78d6"></a>
   <img alt="Requires Hermes 0.22.7+" src="https://img.shields.io/badge/hermes-%E2%89%A50.22.7-1baf7a">
   <img alt="82 tests passing" src="https://img.shields.io/badge/tests-82%20passing-1baf7a">
-  <img alt="Surfaces" src="https://img.shields.io/badge/works%20in-Telegram%20%C2%B7%20Slack%20%C2%B7%20Desktop%20%C2%B7%20CLI-6250d6">
+  <img alt="Surfaces" src="https://img.shields.io/badge/works%20in-Telegram%20%C2%B7%20Slack%20%C2%B7%20Discord%20%C2%B7%20Desktop%20%C2%B7%20CLI-6250d6">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-8a897f"></a>
 </p>
 
@@ -146,7 +146,7 @@ A live pipeline: **Draft → Sent → Accepted → Booked → In progress → Do
 
 </details>
 
-### Telegram and Slack
+### Telegram, Slack and Discord
 
 Run `/docket setup` once in your chat with Hermes (`!docket setup` on Slack). From then on:
 
@@ -241,7 +241,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 | **Hermes Desktop / Webapp** | ✅ verified | Capabilities → Plugins → switch **Docket** on, then restart the gateway once so the board's backend loads |
 | **Telegram** | ✅ verified live | `hermes gateway setup` → Telegram, then send `/docket setup` to your bot |
 | **Slack** | ✅ verified live | `hermes gateway setup` → Slack, then `!docket setup`. Use `!quote`, `!jobs`: Slack caps apps at 50 slash commands, and Hermes uses them all |
-| **Discord** | 🧪 beta | Same buttons through Discord components; covered by tests, live check pending |
+| **Discord** | ✅ verified live | `hermes gateway setup` → Discord, add the bot to a server you're in (Discord only lets bots DM people they share a server with), then `/docket setup` |
 | **Other platforms** | ✅ | Slash commands and Hermes's own choice prompts |
 
 **Customer links.** The accept page runs on your machine (`127.0.0.1:8787`, or the next free port). To let real customers reach it, put it behind a tunnel you control and run `/docket link https://your-tunnel.example`.
