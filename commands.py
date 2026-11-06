@@ -10,6 +10,7 @@ from . import runtime
 from .money import fmt_money
 from .service import (ServiceError, draft_from_words, jobs_text, owner_text, parse_quote_id, revise_from_words,
                       send_quote)
+from .invoices import InvoiceError
 from .store import StoreError
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ def make_quote_command(ctx: Any):
         surface = str(kwargs.get("platform") or "")
         try:
             return _quote(ctx, (raw_args or "").strip(), surface)
-        except (ServiceError, StoreError) as exc:
+        except (ServiceError, StoreError, InvoiceError) as exc:
             return f"Docket: {exc}"
         except Exception as exc:
             logger.exception("/quote failed")
