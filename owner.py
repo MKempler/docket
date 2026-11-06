@@ -157,7 +157,7 @@ def perform(data: str, *, platform: str, user_id: str, store, book, outbox_root,
                                 base_url=base_url(), render_pdf=render_pdf)
             rec = store.get(quote_id)
             note = "Already sent." if result.get("already_sent") else "Sent."
-            return ActionResult(True, f"{note} {rec.number}", card=_without_buttons(quote_card(book, rec, with_png=False)),
+            return ActionResult(True, f"{note} {rec.number}", card=_without_buttons(quote_card(book, rec)),
                                 followup=f"📨 {rec.number} sent to {rec.customer['name']}. Customer link: {result['accept_url']}")
         if verb == "edit":
             return ActionResult(True, "Tell me the change",
@@ -166,7 +166,7 @@ def perform(data: str, *, platform: str, user_id: str, store, book, outbox_root,
                                          f"/quote revise {rec.number} <change>.")
         if verb == "discard":
             rec = store.transition(quote_id, "discarded", actor="owner", surface=platform)
-            return ActionResult(True, f"{rec.number} discarded", card=_without_buttons(quote_card(book, rec, with_png=False)))
+            return ActionResult(True, f"{rec.number} discarded", card=_without_buttons(quote_card(book, rec)))
         if verb == "book":
             day = datetime.strptime(arg, "%Y%m%d").date()
             rec = store.transition(quote_id, "scheduled", actor="owner", surface=platform,

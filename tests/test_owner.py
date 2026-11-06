@@ -49,6 +49,7 @@ def test_only_the_owner_can_press(env):
     assert not tap(data, platform="slack").ok                                         # no Slack owner yet
     r = tap(data)
     assert r.ok and store.get(rec.id).status == "sent" and "/q/" in r.followup and r.card.buttons == []
+    assert r.card.png and r.card.png.startswith(b"\x89PNG")                    # fresh image with the SENT badge
 
 
 def test_stale_card_after_revision_is_refused(env):
@@ -131,7 +132,9 @@ def test_telegram_send_and_tap(env):
         q.message.photo = [1]
         lt.call(ch.on_callback(SimpleNamespace(callback_query=q), None))
     assert store.get(rec.id).status == "sent"
-    assert [c[0] for c in q.calls] == ["answer", "edit_message_caption"]
+    assert [c[0] for c in q.calls] == ["answer", "edit_message_media"]
+    media = q.calls[1][1]["media"]
+    assert media.caption.endswith("· sent")                                     # image redrawn with new status
     assert q.message.calls[0][0] == "reply_text"
 
 

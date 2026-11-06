@@ -56,7 +56,12 @@ class TelegramChannel(Channel):
         if result.card is not None:
             text = result.card.caption if query.message and query.message.photo else result.card.text
             try:
-                if query.message and query.message.photo:
+                if query.message and query.message.photo and result.card.png:
+                    from telegram import InputMediaPhoto      # redraw the image so its status badge updates
+                    await query.edit_message_media(
+                        media=InputMediaPhoto(media=io.BytesIO(result.card.png), caption=text[:1024]),
+                        reply_markup=self.markup(result.card))
+                elif query.message and query.message.photo:
                     await query.edit_message_caption(caption=text[:1024], reply_markup=self.markup(result.card))
                 else:
                     await query.edit_message_text(text=text[:4096], reply_markup=self.markup(result.card))
@@ -110,8 +115,13 @@ class DiscordChannel(Channel):
             None, self.tap, custom_id, self.platform, str(interaction.user.id))
         if result.card is not None and interaction.message is not None:
             try:
-                await interaction.message.edit(content=(result.card.caption if interaction.message.attachments
-                                                        else result.card.text)[:2000], view=self.view(result.card))
+                has_image = bool(interaction.message.attachments)
+                kwargs: dict[str, Any] = {"view": self.view(result.card)}
+                if has_image and result.card.png:           # redraw the image so its status badge updates
+                    import discord
+                    kwargs["attachments"] = [discord.File(io.BytesIO(result.card.png), filename="quote.png")]
+                await interaction.message.edit(content=(result.card.caption if has_image else result.card.text)[:2000],
+                                               **kwargs)
             except Exception:
                 logger.debug("Docket: card edit skipped", exc_info=True)
         message = result.followup or ("" if result.ok else result.toast)
