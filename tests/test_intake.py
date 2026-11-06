@@ -159,3 +159,9 @@ def test_revisions_do_not_re_ask_what_the_quote_knows():
                                  "Which bathroom is the toilet in?"]})
     r = intake(BOOK, "make it saturday and add a toilet reset", llm, previous={"items": [], "zip": "62701"})
     assert r.questions == ["Which bathroom is the toilet in?"] and r.args["zip"] == "62701"
+
+
+def test_stated_labor_hours_survive_a_model_that_calls_them_unpriced():
+    llm = FakeLLM({"items": [], "unpriced": ["plus 1 hour labor"]})
+    r = intake(BOOK, "plus 1 hour labor", llm)
+    assert codes(r) == {"LABOR": "1"} and r.args["unpriced"] == []

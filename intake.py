@@ -377,6 +377,14 @@ def _validated(book: PriceBook, parsed: dict[str, Any], *, text: str = "", previ
                 notes.append(f"{fee.name}: {it['qty']} reduced to {cap} (one per {', '.join(fee.limit_to)})")
                 it["qty"] = str(cap)
 
+    # Stated hours of labor ("plus 1 hour labor", "2.5 hrs") are read by code, whatever the model did with them.
+    if text and not any(it["code"] == "LABOR" for it in items):
+        m = LABOR_HOURS_RE.search(text)
+        if m and re.search(r"\b(labou?r|work|extra|on site|onsite)\b", text, re.I):
+            items.append({"code": "LABOR", "qty": m.group(1), "note": "stated hours"})
+            unpriced = [u for u in unpriced if not LABOR_HOURS_RE.search(u)]
+            notes.append(f"Added {m.group(1)} h of labor as stated")
+
     flags = [f for f in parsed.get("flags") or [] if f in FLAG_PATTERNS]
     if text:
         flags = sorted(set(flags) | {f for f, pat in FLAG_PATTERNS.items() if pat.search(text)})
