@@ -145,7 +145,7 @@ def _jobs_tool(args: dict, **kwargs) -> str:
 def _pricebook_command(raw_args: str = "", **kwargs) -> str:
     try:
         from . import runtime
-        from .money import fmt_money
+        from .money import fmt_money, fmt_qty
         book, errors, path, is_demo = runtime.book()
         sub = (raw_args or "").strip().lower() or "show"
         label = " (demo price book)" if is_demo else ""
@@ -155,7 +155,7 @@ def _pricebook_command(raw_args: str = "", **kwargs) -> str:
             return (f"Price book OK{label}: {len(book.assemblies)} assemblies, {len(book.materials)} materials, "
                     f"{len(book.fees)} fees.\n{path}")
         lines = [f"{book.business.get('name', 'Price book')}{label} · {book.currency} · labor "
-                 f"{fmt_money(book.labor_rate, book.currency)}/h · {book.tax_name} {book.tax_rate * 100:g}% on "
+                 f"{fmt_money(book.labor_rate, book.currency)}/h · {book.tax_name} {fmt_qty(book.tax_rate * 100)}% on "
                  f"{', '.join(sorted(book.tax_applies_to)) or 'nothing'}", "Assemblies:"]
         lines += [f"  {a.code:<18} {a.name} (per {a.unit})" for a in book.assemblies.values()]
         lines.append("Fees:")
