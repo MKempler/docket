@@ -5,7 +5,7 @@ author: Max Kempler
 manifest_version: 2
 api_version: 1
 license: MIT
-homepage: https://github.com/MKempler/jobbook
+homepage: https://github.com/MKempler/docket
 tags: [business, trades, quotes, telegram]
 requires_hermes: ">=0.22.7"
 provides_tools:
