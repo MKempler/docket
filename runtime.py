@@ -47,9 +47,25 @@ def outbox_root() -> Path:
     return root
 
 
+INTAKE_TASK: str | None = None     # set by register() when the host supports plugin auxiliary tasks
+
+
+class _TaskLLM:
+    """ctx.llm routed through Docket's own auxiliary task (thinking off, longer timeout, user-pinnable model)."""
+
+    def __init__(self, inner: Any, task: str):
+        self._inner, self._task = inner, task
+
+    def complete_structured(self, **kwargs: Any) -> Any:
+        return self._inner.complete_structured(task=self._task, **kwargs)
+
+
 def llm(ctx: Any) -> Any:
     """ctx.llm when the host offers it. Intake falls back to the built-in parser on any failure."""
     try:
-        return getattr(ctx, "llm", None)
+        inner = getattr(ctx, "llm", None)
     except Exception:
         return None
+    if inner is not None and INTAKE_TASK:
+        return _TaskLLM(inner, INTAKE_TASK)
+    return inner

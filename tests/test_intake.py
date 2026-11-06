@@ -83,3 +83,28 @@ def test_model_failure_falls_back_to_parser(llm):
     assert r.source == "parser"
     assert codes(r) == {"WH50-REPLACE": "1", "PERMIT-WH": "1"}
     assert "built-in parser" in r.notes[0]
+
+
+CHATTY = ("Hey so Dana Henderson over at 14 Maple St, 62707, her 50 gallon gas water heater is leaking, needs a swap. "
+          "She'll need the permit and wants the old one hauled off. She can only do Saturday.")
+
+
+def test_chatty_sentence_from_the_live_run():
+    r = parse_words(BOOK, CHATTY)
+    assert r.customer_name == "Dana Henderson"
+    assert r.site == "14 Maple St" and r.args["zip"] == "62707"
+    assert codes(r) == {"WH50-REPLACE": "1", "PERMIT-WH": "1", "HAULAWAY": "1"}
+    assert r.args["flags"] == ["weekend"]
+    assert r.args["unpriced"] == []                     # filler like "needs a swap" is not a line item
+    assert any("needs a swap" in n for n in r.notes)    # but the owner can see what was not used
+    q = price(BOOK, spec_from_args(r.args))
+    assert str(q.total) == "2073.61"                    # Saturday labor; matches the rendered card
+
+
+def test_chatty_variants():
+    r = parse_words(BOOK, "Quote for Mike O'Brien at 220 Oak Ave 62712 - kitchen faucet and a new disposal, after hours")
+    assert r.customer_name == "Mike O'Brien" and r.site == "220 Oak Ave"
+    assert codes(r) == {"FAUCET-KITCHEN": "1", "DISPOSAL-INSTALL": "1"}
+    assert r.args["flags"] == ["after_hours"]
+    r = parse_words(BOOK, "toilet's rocking at the Garcias, 62701, pull and reset it")
+    assert codes(r) == {"TOILET-RESET": "1"} and r.args["unpriced"] == []

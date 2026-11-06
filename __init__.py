@@ -189,7 +189,19 @@ def _docket_command(raw_args: str = "", **kwargs) -> str:
 
 
 def register(ctx):
+    from . import runtime
     from .commands import jobs, make_quote_command
+
+    # Docket's own model slot: job intake only maps words to price-book codes, so thinking is switched off
+    # (reasoning models otherwise spend minutes before answering) and the owner can pin a faster model for it.
+    try:
+        ctx.register_auxiliary_task(
+            "docket_intake", display_name="Docket job intake",
+            description="Maps a job description to price-book codes. Never prices. A fast model works best.",
+            defaults={"reasoning_effort": "none", "timeout": 90})
+        runtime.INTAKE_TASK = "docket_intake"
+    except Exception as exc:  # older hosts: use the main model with default settings
+        logger.info("Docket: auxiliary task unavailable (%s); intake uses the main model", exc)
 
     ctx.register_tool(name="docket_price_preview", toolset="docket", schema=PRICE_PREVIEW_SCHEMA,
                       handler=_price_preview, description="Price work from your price book", emoji="🧾")
