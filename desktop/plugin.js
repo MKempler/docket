@@ -65,6 +65,20 @@ const STATUS_TEXT = {
   expired: 'Expired', invoiced: 'Invoiced', paid: 'Paid'
 }
 
+// After a send: copy the ready-to-forward customer message, and say so (plus a warning when the link is local-only).
+const afterSend = res => {
+  if (res?.customer_message) {
+    CLIPBOARD?.(res.customer_message)
+    host.notify({
+      kind: 'success',
+      message: `${res.message}. Message for the customer copied: paste it into a text or email.` +
+        (res.link_is_local ? ' Note: the link only opens on this computer until you set a public link in Settings → Plugins → docket.' : '')
+    })
+    return true
+  }
+  return false
+}
+
 function Pill({ children, tone }) {
   const tones = {
     accent: 'border-(--ui-accent) text-(--ui-accent)',
@@ -204,7 +218,7 @@ function Detail({ id, currency, onClose }) {
     setBusy(true)
     try {
       const res = await REST(`/quote/${id}/${action}`, { method: 'POST', body: body || {} })
-      host.notify({ kind: 'success', message: res.message || 'Done' })
+      if (!afterSend(res)) host.notify({ kind: 'success', message: res.message || 'Done' })
       await qc.invalidateQueries({ queryKey: KEY })
     } catch (err) {
       host.notify({ kind: 'error', message: String(err?.message || err) })
@@ -260,17 +274,26 @@ function Detail({ id, currency, onClose }) {
         ]
       }),
       actions.length ? jsx('div', { className: 'flex flex-wrap items-center gap-2', children: actions }) : null,
-      data.accept_url
+      data.customer_message
         ? jsxs('div', {
-            className: 'flex items-center gap-2 text-[0.6875rem] text-(--ui-text-tertiary)',
+            className: 'flex flex-col gap-1.5 rounded-md border border-(--ui-stroke-secondary) p-2.5',
             children: [
-              jsx('span', { className: 'truncate', children: data.accept_url }),
-              jsx('button', {
-                type: 'button',
-                className: 'shrink-0 text-(--ui-accent)',
-                onClick: () => { CLIPBOARD?.(data.accept_url); host.notify({ kind: 'info', message: 'Customer link copied' }) },
-                children: 'Copy link'
-              })
+              jsxs('div', {
+                className: 'flex items-center justify-between gap-2',
+                children: [
+                  jsx('span', { className: 'text-[0.6875rem] uppercase tracking-wide text-(--ui-text-tertiary)', children: 'Message for the customer' }),
+                  jsx('button', {
+                    type: 'button',
+                    className: 'shrink-0 text-[0.75rem] font-medium text-(--ui-accent)',
+                    onClick: () => { CLIPBOARD?.(data.customer_message); host.notify({ kind: 'info', message: 'Copied: paste it into a text or email' }) },
+                    children: 'Copy'
+                  })
+                ]
+              }),
+              jsx('p', { className: 'whitespace-pre-wrap break-words text-[0.75rem] text-(--ui-text-secondary)', children: data.customer_message }),
+              data.link_is_local
+                ? jsx('span', { className: 'text-[0.6875rem] text-(--ui-text-tertiary)', children: 'This link only opens on this computer. Set a public link in Settings → Plugins → docket before sending it to a real customer.' })
+                : null
             ]
           })
         : null,
@@ -395,7 +418,7 @@ function QuoteDirective({ attrs, sessionId, streaming }) {
     setBusy(true)
     try {
       const res = await REST(`/quote/${id}/send`, { method: 'POST', body: {} })
-      host.notify({ kind: 'success', message: res.message })
+      if (!afterSend(res)) host.notify({ kind: 'success', message: res.message })
       await qc.invalidateQueries({ queryKey: KEY })
     } catch (err) {
       host.notify({ kind: 'error', message: String(err?.message || err) })

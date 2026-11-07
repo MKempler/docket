@@ -164,6 +164,7 @@ A live pipeline: **Draft → Sent → Accepted → Booked → In progress → Do
 Run `/docket setup` once in your chat with Hermes (`!docket setup` on Slack). From then on:
 
 - **Quote cards** arrive with **✅ Send · ✏️ Edit · 🗑 Discard**. After sending, the card redraws with a **SENT** badge.
+- **A message ready for the customer** follows as its own chat message (*"Hi Dana, here's your quote from Copperline… $1,972.36. See every line and accept it here: …"*). Long-press it and forward it by text, WhatsApp or email. In Desktop it's copied to your clipboard when you press Send, and shown on the quote with a Copy button.
 - **Customer updates:** *"👀 Dana opened Q-1007"*, then *"✅ Dana accepted. Book it: [Sat Nov 7] [Mon Nov 9] [Pick a day]"*. Sundays are skipped.
 - **Only you can press Docket's buttons**, even in a group chat.
 
@@ -300,7 +301,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 | **Model calls** | Job descriptions go to the model you configured in Hermes, to map them to codes. Price lists it can't read plainly go to the same model. Prices never come from the model: an imported price must appear in your own words. |
 | **Voice notes** | Transcribed by Hermes's speech-to-text (local Whisper by default). Docket's `pre_transcription` hook adds your price book's item names and aliases to the transcription prompt; if you configured a cloud speech provider, that prompt goes to it with the audio. |
 | **Network** | A local HTTP server for the customer accept page (loopback by default). Messages go only to *your* registered chat, through *your* bots. No telemetry. |
-| **Email** | Docket does **not** send email. It writes the customer email and PDF to the outbox for you to send. |
+| **Email** | Docket does **not** send email or texts. It writes the customer email and PDF to the outbox, and hands you a ready-to-forward message; you choose how it reaches the customer. It warns you when a customer link would only open on your own computer. |
 | **Approvals** | A `pre_tool_call` gate asks before the agent sends a quote or saves a price book change (listing the exact changes), and blocks both from scheduled runs. A `pre_llm_call` hook adds one line pointing the model at Docket's tools, only on messages about quoting or your price book. |
 | **Payments** | None. Invoices are handed to Obol as drafts or kept as PDFs. |
 | **Automations** | Blueprint jobs you schedule keep running after Docket is removed, until you delete them. |
@@ -312,7 +313,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 ```bash
 git clone https://github.com/MKempler/docket && cd docket
 uv venv .venv && uv pip install --python .venv/bin/python -r requirements-dev.txt
-.venv/bin/python -m pytest -q                                     # 133 tests; CI runs them on Python 3.11–3.14
+.venv/bin/python -m pytest -q                                     # 143 tests; CI runs them on Python 3.11–3.14
 hermes plugins doctor docket --ci && hermes plugins validate docket --install-deps
 ```
 

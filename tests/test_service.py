@@ -97,10 +97,27 @@ def test_same_job_twice_in_one_chat_reuses_the_draft(store):
     assert a.record.id == b.record.id != c.record.id and len(store.list()) == 2
 
 
-def test_misheard_name_matches_the_customer_at_the_same_zip():
-    store = _store() if "_store" in globals() else Store(sqlite3.connect(":memory:", check_same_thread=False))
+def test_misheard_name_matches_the_customer_at_the_same_zip(store):
     svc.draft_from_words(store, BOOK, "Dana Henderson, 14 Maple St 62707, water heater")
     d = svc.draft_from_words(store, BOOK, "Denahenderson 14 Maple Street, 62707, swap the water heater")
     assert d.record.customer["name"] == "Dana Henderson" and "Denahenderson" in d.intake.notes[-1]
     other = svc.draft_from_words(store, BOOK, "Dan Henderson, 9 Oak St 62711, water heater")      # other ZIP
     assert other.record.customer["name"] == "Dan Henderson"
+
+
+def test_customer_message_is_short_exact_and_forwardable(store, tmp_path):
+    d = svc.draft_from_words(store, BOOK, "Dana Henderson, 14 Maple St 62707, water heater, permit, haul away")
+    sent = svc.send_quote(store, BOOK, d.record.id, outbox_root=tmp_path, actor="owner")
+    msg = svc.customer_message(BOOK, store.get(d.record.id), sent["accept_url"])
+    assert msg.splitlines()[0] == "Hi Dana, here's your quote from Copperline Plumbing & Drain for the work at 14 Maple St: $1,972.36 (Q-1001)."
+    assert sent["accept_url"] in msg and "(555) 010-4477" in msg
+
+
+@pytest.mark.parametrize("url, local", [
+    ("http://127.0.0.1:8787/q/x", True), ("http://localhost:8788/q/x", True), ("http://192.168.1.20:8787/q/x", True),
+    ("http://10.0.0.5/q/x", True), ("http://172.20.1.1/q/x", True), ("http://mac.local:8787/q/x", True),
+    ("https://quotes.example.com/q/x", False), ("https://abc.trycloudflare.com/q/x", False),
+    ("http://172.32.0.1/q/x", False),
+])
+def test_local_links_are_spotted(url, local):
+    assert svc.link_is_local(url) is local

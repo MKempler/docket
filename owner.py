@@ -47,7 +47,8 @@ class ActionResult:
     ok: bool
     toast: str                     # brief acknowledgement shown on the tap
     card: Card | None = None       # replacement for the tapped message, if it changes
-    followup: str = ""             # an extra message, e.g. the customer link
+    followup: str = ""             # an extra message for the owner
+    forward: str = ""              # a message on its own, ready to forward to the customer
 
 
 # ---------------------------------------------------------------- owner registry
@@ -150,7 +151,7 @@ def perform(data: str, *, platform: str, user_id: str, store, book, outbox_root,
             render_pdf: Callable | None = None, pricebook: tuple[Callable, Callable] | None = None) -> ActionResult:
     """Run one button tap. Pure business logic; adapters handle drawing and network."""
     from .pbedit import EditError
-    from .service import ServiceError, send_quote
+    from .service import LOCAL_LINK_NOTE, ServiceError, customer_message, link_is_local, send_quote
     from .store import StoreError
     owner = get_owner(store, platform)
     if not owner:
@@ -175,8 +176,13 @@ def perform(data: str, *, platform: str, user_id: str, store, book, outbox_root,
                                 base_url=base_url(), render_pdf=render_pdf)
             rec = store.get(quote_id)
             note = "Already sent." if result.get("already_sent") else "Sent."
+            url = result["accept_url"]
+            owner_note = (f"📨 {rec.number} is ready for {rec.customer['name']}. Forward the next message to them "
+                          f"(text, WhatsApp or email); the PDF is in Docket's outbox.")
+            if link_is_local(url):
+                owner_note += "\n" + LOCAL_LINK_NOTE
             return ActionResult(True, f"{note} {rec.number}", card=_without_buttons(quote_card(book, rec)),
-                                followup=f"📨 {rec.number} sent to {rec.customer['name']}. Customer link: {result['accept_url']}")
+                                followup=owner_note, forward=customer_message(book, rec, url))
         if verb == "edit":
             return ActionResult(True, "Tell me the change",
                                 followup=f"What should change on {rec.number}? Reply in your own words, e.g. "

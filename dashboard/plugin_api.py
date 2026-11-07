@@ -79,7 +79,9 @@ def quote(quote_id: int) -> dict[str, Any]:
     if rec.status in {"sent", "viewed", "accepted", "scheduled", "in_progress", "done"}:
         base = runtime.public_link() or None
         link = service.accept_url(store, rec, base)
+    message = service.customer_message(runtime.require_book(), rec, link) if link else None
     return {**_card(rec, store), "customer_info": rec.customer, "quote": rec.quote, "accept_url": link,
+            "customer_message": message, "link_is_local": bool(link) and service.link_is_local(link),
             "events": [{"to": e["to_status"], "from": e["from_status"], "actor": e["actor"], "surface": e["surface"],
                         "detail": e["detail"], "at": e["at"]} for e in store.events(quote_id)],
             "actions": _actions(rec)}
@@ -114,7 +116,10 @@ def act(quote_id: int, action: str, body: dict | None = None) -> dict[str, Any]:
             result = service.send_quote(store, book, quote_id, outbox_root=runtime.outbox_root(), actor="owner",
                                         surface="desktop", base_url=runtime.ensure_accept_server(),
                                         render_pdf=runtime.render_pdf_fn())
-            return {"ok": True, "message": f"Sent {result['number']}", "accept_url": result["accept_url"]}
+            rec = store.get(quote_id)
+            return {"ok": True, "message": f"Sent {result['number']}", "accept_url": result["accept_url"],
+                    "customer_message": service.customer_message(book, rec, result["accept_url"]),
+                    "link_is_local": service.link_is_local(result["accept_url"])}
         if action == "discard":
             store.transition(quote_id, "discarded", actor="owner", surface="desktop")
             return {"ok": True, "message": f"Q-{quote_id} discarded"}

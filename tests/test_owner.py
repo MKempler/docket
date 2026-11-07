@@ -48,7 +48,8 @@ def test_only_the_owner_can_press(env):
     assert not tap(data, user="999").ok and store.get(rec.id).status == "draft"
     assert not tap(data, platform="slack").ok                                         # no Slack owner yet
     r = tap(data)
-    assert r.ok and store.get(rec.id).status == "sent" and "/q/" in r.followup and r.card.buttons == []
+    assert r.ok and store.get(rec.id).status == "sent" and "/q/" in r.forward and r.card.buttons == []
+    assert r.forward.startswith("Hi Dana, here's your quote") and "only opens on this computer" in r.followup
     assert r.card.png and r.card.png.startswith(b"\x89PNG")                    # fresh image with the SENT badge
 
 
@@ -155,7 +156,7 @@ def test_slack_blocks_and_action(env):
         body = {"user": {"id": "U1"}, "channel": {"id": "C1"}, "message": {"ts": "1.2"}}
         lt.call(ch.on_action(ack, body, {"action_id": card.buttons[0][0].data, "value": card.buttons[0][0].data}))
     assert acks == [1] and store.get(rec.id).status == "sent"
-    assert [c[0] for c in app.client.calls] == ["chat_update", "chat_postMessage"]
+    assert [c[0] for c in app.client.calls] == ["chat_update", "chat_postMessage", "chat_postMessage"]
 
 
 def test_discord_view_and_interaction(env):

@@ -228,10 +228,16 @@ def _send_tool(args: dict, **kwargs) -> str:
     try:
         from . import runtime
         from .commands import _pdf_renderer
-        from .service import parse_quote_id, send_quote
-        result = send_quote(runtime.store(), runtime.require_book(), parse_quote_id(str((args or {}).get("quote_id"))),
-                            outbox_root=runtime.outbox_root(), actor="agent", surface="tool", render_pdf=_pdf_renderer(),
-                            base_url=runtime.ensure_accept_server())
+        from .service import LOCAL_LINK_NOTE, customer_message, link_is_local, parse_quote_id, send_quote
+        store, book = runtime.store(), runtime.require_book()
+        qid = parse_quote_id(str((args or {}).get("quote_id")))
+        result = send_quote(store, book, qid, outbox_root=runtime.outbox_root(), actor="agent", surface="tool",
+                            render_pdf=_pdf_renderer(), base_url=runtime.ensure_accept_server())
+        result["customer_message"] = customer_message(book, store.get(qid), result["accept_url"])
+        result["next"] = ("Give the owner customer_message exactly as written, as its own paragraph, so they can "
+                          "forward it to the customer by text or email.")
+        if link_is_local(result["accept_url"]):
+            result["next"] += " Then tell them: " + LOCAL_LINK_NOTE
         return json.dumps(result)
     except Exception as exc:
         logger.exception("docket_send_quote failed")

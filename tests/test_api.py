@@ -46,6 +46,7 @@ def test_quote_detail_and_actions(client):
     accepted = next(q for q in store.list() if q.status == "accepted")
     d = c.get(f"/api/plugins/docket/quote/{accepted.id}").json()
     assert [a["id"] for a in d["actions"]] == ["book"] and d["accept_url"].startswith("http://127.0.0.1:8787/q/")
+    assert d["customer_message"].startswith("Hi ") and d["accept_url"] in d["customer_message"] and d["link_is_local"]
     r = c.post(f"/api/plugins/docket/quote/{accepted.id}/book", json={"date": "2026-11-10"})
     assert r.status_code == 200 and store.get(accepted.id).scheduled_for == "2026-11-10"
     for step in ("in_progress", "done"):

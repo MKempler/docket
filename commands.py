@@ -77,9 +77,9 @@ def _quote(ctx: Any, text: str, surface: str) -> str:
         if verb == "show":
             return owner_text(book, store.get(qid)) + f"\nStatus: {store.get(qid).status}"
         if verb == "send":
-            return _send_text(send_quote(store, book, qid, outbox_root=runtime.outbox_root(), actor="owner",
-                                         surface=surface, render_pdf=_pdf_renderer(),
-                                         base_url=runtime.ensure_accept_server()))
+            result = send_quote(store, book, qid, outbox_root=runtime.outbox_root(), actor="owner", surface=surface,
+                                render_pdf=_pdf_renderer(), base_url=runtime.ensure_accept_server())
+            return _send_text(result, book, store.get(qid))
         if verb == "discard":
             rec = store.transition(qid, "discarded", actor="owner", surface=surface)
             return f"{rec.number} discarded."
@@ -109,7 +109,7 @@ def _offer(ctx: Any, store, book, d, surface: str, header: str = "") -> str:
     if choice == "send":
         result = send_quote(store, book, rec.id, outbox_root=runtime.outbox_root(), actor="owner", surface=surface,
                             render_pdf=_pdf_renderer(), base_url=runtime.ensure_accept_server())
-        return text + "\n\n" + _send_text(result)
+        return text + "\n\n" + _send_text(result, book, store.get(rec.id))
     if choice == "discard":
         store.transition(rec.id, "discarded", actor="owner", surface=surface)
         return text + f"\n\n{rec.number} discarded."
@@ -118,11 +118,18 @@ def _offer(ctx: Any, store, book, d, surface: str, header: str = "") -> str:
     return text + f"\n\nSaved as a draft. Send it with /quote send {rec.number}"
 
 
-def _send_text(result: dict) -> str:
+def _send_text(result: dict, book=None, rec=None) -> str:
+    from .service import LOCAL_LINK_NOTE, customer_message, link_is_local
+    url = result["accept_url"]
     if result.get("already_sent"):
-        return f"{result['number']} v{result['version']} was already sent ({result['status']}). Link: {result['accept_url']}"
-    return (f"✅ Sent {result['number']} v{result['version']}.\nCustomer link: {result['accept_url']}\n"
-            f"Saved to {result['outbox']}")
+        head = f"{result['number']} v{result['version']} was already sent ({result['status']})."
+    else:
+        head = f"✅ Sent {result['number']} v{result['version']}. Email and PDF saved to {result['outbox']}"
+    if book is None or rec is None:
+        return f"{head}\nCustomer link: {url}"
+    out = (f"{head}\n\nMessage for {rec.customer['name']} (copy it into a text, WhatsApp or email):\n\n"
+           f"{customer_message(book, rec, url)}")
+    return out + (f"\n\n{LOCAL_LINK_NOTE}" if link_is_local(url) else "")
 
 
 def _pdf_renderer():

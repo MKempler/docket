@@ -155,6 +155,34 @@ def _send_locked(store: Store, book: PriceBook, quote_id: int, *, outbox_root: P
             "accept_url": url, "outbox": str(folder)}
 
 
+LOCAL_HOSTS = ("127.", "localhost", "0.0.0.0", "[::1]", "10.", "192.168.")
+
+
+def link_is_local(url: str) -> bool:
+    """True when a customer link only opens on this computer or this network (no public link set)."""
+    from urllib.parse import urlparse
+    host = (urlparse(url).hostname or "").lower()
+    return not host or host.startswith(LOCAL_HOSTS) or host.endswith(".local") or \
+        any(host.startswith(f"172.{n}.") for n in range(16, 32))
+
+
+LOCAL_LINK_NOTE = ("⚠️ That link only opens on this computer. Before sending it to a real customer, set "
+                   "Public link for customers in Hermes Settings → Plugins → docket (or /docket link <url>).")
+
+
+def customer_message(book: PriceBook, rec: QuoteRecord, url: str) -> str:
+    """A short message the owner can forward by text, WhatsApp or email. Every number comes from the quote."""
+    name = (rec.customer.get("name") or "").strip()
+    first = name.split()[0] if name and name != "New customer" else "there"
+    biz = book.business.get("name") or "us"
+    where = f" for the work at {rec.site}" if rec.site else ""
+    total = fmt_money(Decimal(rec.total), rec.quote.get("currency", book.currency))
+    phone = book.business.get("phone", "")
+    contact = f"Any questions, call or text {phone}." if phone else "Any questions, just reply to this message."
+    return (f"Hi {first}, here's your quote from {biz}{where}: {total} ({rec.number}).\n"
+            f"See every line and accept it here: {url}\n{contact} Thanks!")
+
+
 def customer_action(store: Store, token: str, action: str, *, surface: str = "accept-page", note: str = "") -> QuoteRecord:
     """Accept / decline / mark viewed from a customer link. The token must name the CURRENT version."""
     try:

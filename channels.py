@@ -69,6 +69,8 @@ class TelegramChannel(Channel):
                 logger.debug("Docket: card edit skipped", exc_info=True)
         if result.followup and query.message:
             await query.message.reply_text(result.followup)
+        if result.forward and query.message:           # its own message: long-press -> Forward / Copy
+            await query.message.reply_text(result.forward, disable_web_page_preview=True)
 
 
 class DiscordChannel(Channel):
@@ -127,6 +129,8 @@ class DiscordChannel(Channel):
         message = result.followup or ("" if result.ok else result.toast)
         if message:
             await interaction.followup.send(message, ephemeral=not result.ok)
+        if result.forward:
+            await interaction.followup.send(result.forward)
 
 
 class SlackChannel(Channel):
@@ -174,3 +178,6 @@ class SlackChannel(Channel):
         message = result.followup or ("" if result.ok else result.toast)
         if message:
             await self.app.client.chat_postMessage(channel=channel, thread_ts=ts, text=message)
+        if result.forward:
+            await self.app.client.chat_postMessage(channel=channel, thread_ts=ts, text=result.forward,
+                                                   unfurl_links=False)
