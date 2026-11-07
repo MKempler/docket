@@ -22,15 +22,15 @@
 
 ## At a glance
 
-| | |
-|---|---|
-| 🎙️ **Quote by voice or text** | A Telegram voice note or a typed sentence becomes a priced quote card. |
-| 🧮 **Exact, never guessed** | Every line priced in code from your price book. Work it can't price is flagged, and a flagged quote can't be sent. |
-| 📱 **One tap to send** | ✅ Send · ✏️ Edit · 🗑 Discard on Telegram, Slack, Discord and Hermes Desktop. A message ready to forward to the customer follows. |
-| 🔗 **Customer accepts online** | A clean page with every line and an **Accept quote** button. You get pinged and book the day with one tap. |
-| 🧾 **Job done → invoice** | Same engine, extra work included. Handed to Obol as a draft, or a PDF in your outbox. |
-| 📒 **Prices in your own words** | *"labor 145/hr, sump pump $289 each"* or a pasted CSV. Preview first, save on confirm, undo any time. |
-| 🖥️ **Built into Hermes** | Jobs board and Price book pages, a status-bar chip, inline quote cards, a Settings page and three automations. |
+<table>
+<tr><td width="30%">🎙️ <b>Quote by voice or text</b></td><td>A Telegram voice note or a typed sentence becomes a priced quote card.</td></tr>
+<tr><td width="30%">🧮 <b>Exact, never guessed</b></td><td>Every line priced in code from your price book. Work it can't price is flagged, and a flagged quote can't be sent.</td></tr>
+<tr><td width="30%">📱 <b>One tap to send</b></td><td>✅ Send · ✏️ Edit · 🗑 Discard on Telegram, Slack, Discord and Hermes Desktop. A message ready to forward to the customer follows.</td></tr>
+<tr><td width="30%">🔗 <b>Customer accepts online</b></td><td>A clean page with every line and an <b>Accept quote</b> button. You get pinged and book the day with one tap.</td></tr>
+<tr><td width="30%">🧾 <b>Job done → invoice</b></td><td>Same engine, extra work included. Handed to Obol as a draft, or a PDF in your outbox.</td></tr>
+<tr><td width="30%">📒 <b>Prices in your own words</b></td><td><i>"labor 145/hr, sump pump $289 each"</i> or a pasted CSV. Preview first, save on confirm, undo any time.</td></tr>
+<tr><td width="30%">🖥️ <b>Built into Hermes</b></td><td>Jobs board and Price book pages, a status-bar chip, inline quote cards, a Settings page and three automations.</td></tr>
+</table>
 
 **Measured, not claimed:** with the same local model, Docket quotes **19 / 20** held-out jobs exactly; the model alone, given the whole price book, gets **3 / 20**. [See how →](#-why-a-plugin-and-not-a-prompt)
 
@@ -54,8 +54,9 @@
 Docket ships a fictional demo company, **Copperline Plumbing & Drain**, so you can try the whole loop with no signups, keys or messaging apps. Everything runs on your machine.
 
 ```bash
-hermes plugins install MKempler/docket --enable    # answer "y" to install its two libraries (reportlab, Pillow)
-hermes docket demo                                 # six customers, quotes in every state
+# answer "y" when Hermes offers to install Docket's two libraries (reportlab, Pillow)
+hermes plugins install MKempler/docket --enable
+hermes docket demo        # six customers, quotes in every state
 ```
 
 Then start a **new** Hermes session (new plugins' tools load in the next session) and run:
