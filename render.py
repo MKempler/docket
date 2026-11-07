@@ -16,7 +16,12 @@ from .money import fmt_money, fmt_qty
 from .pricebook import PriceBook
 from .store import QuoteRecord
 
-VALID_DAYS = 30
+VALID_DAYS = 30                  # default; the owner's "Quote valid for" setting wins
+
+
+def _valid_days() -> int:
+    from .settings import setting
+    return setting("quote_valid_days")
 
 
 def _qty_label(line: dict[str, Any]) -> str:
@@ -130,7 +135,7 @@ def render_pdf(book: PriceBook, rec: QuoteRecord, accept_url: str) -> bytes:
     issued = _quote_date(rec)
     _draw_document(c, book, rec.quote, title="QUOTE",
                    ref_lines=[f"{rec.number} · version {rec.version}",
-                              f"Issued {issued:%b %d, %Y} · valid until {issued + timedelta(days=VALID_DAYS):%b %d, %Y}"],
+                              f"Issued {issued:%b %d, %Y} · valid until {issued + timedelta(days=_valid_days()):%b %d, %Y}"],
                    party_label="Prepared for",
                    party_lines=[rec.customer.get("name", ""), rec.site, rec.zip and f"ZIP {rec.zip}"])
     left = 0.75 * inch
@@ -149,7 +154,7 @@ def render_pdf(book: PriceBook, rec: QuoteRecord, accept_url: str) -> bytes:
         c.drawString(left + box + 14, 0.9 * inch + box - 44 - 11 * i, chunk)
     c.setFillGray(0.35)
     c.drawString(left + box + 14, 0.9 * inch + 6,
-                 f"Fixed price for the work listed. Valid {VALID_DAYS} days. Changes to the scope are quoted separately.")
+                 f"Fixed price for the work listed. Valid {_valid_days()} days. Changes to the scope are quoted separately.")
     c.showPage()
     c.save()
     return buf.getvalue()

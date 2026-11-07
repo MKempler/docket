@@ -143,6 +143,22 @@ class Store:
             raise StoreError(f"no customer {cid}")
         return dict(zip(("id", "name", "phone", "email", "address", "zip", "tier"), row))
 
+    def match_customer(self, heard: str, zip_code: str) -> dict[str, Any] | None:
+        """An existing customer a misheard name most likely means: close spelling AND the same ZIP, and only one
+        such customer ("Denahenderson" at 62707 -> Dana Henderson at 62707). Never matches across ZIPs, so a
+        different person with a similar name elsewhere stays a new customer."""
+        import difflib
+        squash = lambda n: "".join(ch for ch in (n or "").lower() if ch.isalpha())  # noqa: E731
+        want = squash(heard)
+        if len(want) < 5 or not zip_code:
+            return None
+        rows = self.conn.execute("SELECT id, name FROM customers WHERE zip = ?", (zip_code,)).fetchall()
+        scored = sorted(((difflib.SequenceMatcher(None, want, squash(name)).ratio(), cid) for cid, name in rows),
+                        reverse=True)
+        if not scored or scored[0][0] < 0.8 or (len(scored) > 1 and scored[1][0] >= 0.8):
+            return None
+        return self.customer(scored[0][1])
+
     def find_customer(self, name: str) -> dict[str, Any] | None:
         row = self.conn.execute("SELECT id FROM customers WHERE lower(name) = lower(?)", ((name or "").strip(),)).fetchone()
         return self.customer(row[0]) if row else None

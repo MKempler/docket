@@ -77,7 +77,7 @@ def quote(quote_id: int) -> dict[str, Any]:
         raise HTTPException(404, f"No quote Q-{quote_id}")
     link = None
     if rec.status in {"sent", "viewed", "accepted", "scheduled", "in_progress", "done"}:
-        base = store.get_meta("public_base_url") or None
+        base = runtime.public_link() or None
         link = service.accept_url(store, rec, base)
     return {**_card(rec, store), "customer_info": rec.customer, "quote": rec.quote, "accept_url": link,
             "events": [{"to": e["to_status"], "from": e["from_status"], "actor": e["actor"], "surface": e["surface"],

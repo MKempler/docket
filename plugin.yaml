@@ -22,3 +22,44 @@ provides_tools:
 provides_hooks:
   - pre_tool_call
   - pre_llm_call
+  - pre_transcription
+config_schema:
+  business_name:
+    type: string
+    label: Business name
+    description: "Shown on quotes, PDFs, invoices and the customer page. Leave blank to use the name in your price book."
+  business_phone:
+    type: string
+    label: Phone
+    description: "Shown on quotes and the customer page."
+  business_email:
+    type: string
+    label: Email
+    description: "Shown on quotes and invoices, and used as the reply-to on quote emails in the outbox."
+  license:
+    type: string
+    label: License number
+    description: "Printed on quote and invoice PDFs."
+  quote_valid_days:
+    type: integer
+    label: Quotes valid for (days)
+    default: 30
+    description: "How long a customer's accept link works, and the 'valid until' date on the quote PDF."
+  invoice_due_days:
+    type: integer
+    label: Invoices due in (days)
+    default: 14
+    description: "Due date on invoices made at close-out."
+  payment_terms:
+    type: string
+    label: Payment terms
+    description: "Text printed on invoices, e.g. 'Net 14. Check, card or bank transfer.'"
+  public_link:
+    type: string
+    label: Public link for customers
+    description: "Base URL customers open quotes at, e.g. your tunnel (https://quotes.example.com). Blank = this computer only (http://127.0.0.1:8787)."
+  followup_after_days:
+    type: integer
+    label: Follow up after (days)
+    default: 5
+    description: "Quotes unanswered this long show up in follow-ups and the weekday follow-up automation."

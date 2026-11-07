@@ -295,8 +295,9 @@ def _report_tool(name):
             from .service import accept_url
             store = runtime.store()
             if name == "docket_followups":
-                days = int((args or {}).get("stale_days") or 5)
-                base = store.get_meta("public_base_url") or None
+                from .settings import setting
+                days = int((args or {}).get("stale_days") or setting("followup_after_days"))
+                base = runtime.public_link() or None
                 result = reports.followups(store, stale_days=max(1, days),
                                            accept_url=lambda rec: accept_url(store, rec, base))
             elif name == "docket_run_sheet":
@@ -445,6 +446,11 @@ def register(ctx):
                           description=schema["description"].split(".")[0], emoji="📋")
     ctx.register_hook("pre_tool_call", _make_gate(ctx))
     ctx.register_hook("pre_llm_call", _hint_hook)
+    try:                                   # voice notes: spell the owner's trade words the way the price book does
+        from .voice import make_pre_transcription_hook
+        ctx.register_hook("pre_transcription", make_pre_transcription_hook(runtime.book))
+    except Exception as exc:               # hosts without the hook still transcribe; just without the hint
+        logger.info("Docket: pre_transcription hook unavailable (%s)", exc)
     _register_blueprints(ctx)
     _register_channels(ctx)
     ctx.register_command("quote", make_quote_command(ctx), description="Price, revise or send a quote",

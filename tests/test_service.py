@@ -95,3 +95,12 @@ def test_same_job_twice_in_one_chat_reuses_the_draft(store):
     b = svc.draft_from_words(store, BOOK, WORDS, dedupe_key="s1:x")
     c = svc.draft_from_words(store, BOOK, WORDS, dedupe_key="s2:x")
     assert a.record.id == b.record.id != c.record.id and len(store.list()) == 2
+
+
+def test_misheard_name_matches_the_customer_at_the_same_zip():
+    store = _store() if "_store" in globals() else Store(sqlite3.connect(":memory:", check_same_thread=False))
+    svc.draft_from_words(store, BOOK, "Dana Henderson, 14 Maple St 62707, water heater")
+    d = svc.draft_from_words(store, BOOK, "Denahenderson 14 Maple Street, 62707, swap the water heater")
+    assert d.record.customer["name"] == "Dana Henderson" and "Denahenderson" in d.intake.notes[-1]
+    other = svc.draft_from_words(store, BOOK, "Dan Henderson, 9 Oak St 62711, water heater")      # other ZIP
+    assert other.record.customer["name"] == "Dan Henderson"

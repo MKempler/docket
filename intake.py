@@ -18,6 +18,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from .pricebook import UNITS_WHOLE, PriceBook
+from .spoken import normalize as normalize_spoken
 
 ZIP_RE = re.compile(r"\b(\d{5})(?:-\d{4})?\b")
 EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
@@ -81,7 +82,7 @@ def _tokens(text: str) -> list[str]:
 
 
 def parse_words(book: PriceBook, text: str) -> IntakeResult:
-    raw = (text or "").strip()
+    raw = normalize_spoken((text or "").strip())
     email_m = EMAIL_RE.search(raw)
     raw = EMAIL_RE.sub(" ", raw)
     zip_match = ZIP_RE.search(raw)
@@ -278,6 +279,7 @@ Return JSON only."""
 
 def model_intake(llm: Any, book: PriceBook, text: str, *, previous: dict[str, Any] | None = None,
                  timeout: float = 90.0) -> IntakeResult:
+    text = normalize_spoken(text)            # "six two seven oh seven" -> 62707: the guards below read digits
     prompt = f"Catalog:\n{catalog_text(book)}\n\n"
     if previous:
         prompt += ("Current quote items (apply the change below to these and return the FULL updated job):\n"

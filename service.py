@@ -61,6 +61,12 @@ def draft_from_words(store: Store, book: PriceBook, words: str, *, llm: Any = No
             except (StoreError, ValueError):
                 pass
     name = result.customer_name or "New customer"
+    if result.customer_name and not store.find_customer(name):
+        known = store.match_customer(name, result.args.get("zip", ""))
+        if known:                                  # speech-to-text often mangles names: "Denahenderson"
+            result.notes.append(f"Heard \u201c{name}\u201d; used your customer {known['name']} at the same ZIP. "
+                                f"Edit the quote if that's someone else.")
+            name = known["name"]
     customer = store.upsert_customer(name, zip=result.args.get("zip", ""), address=result.site, email=result.email)
     if customer.get("tier") and not result.args.get("customer_tier"):
         result.args["customer_tier"] = customer["tier"]
@@ -104,8 +110,9 @@ def _merge(previous: dict[str, Any], addition: IntakeResult) -> IntakeResult:
 
 
 def accept_url(store: Store, rec: QuoteRecord, base_url: str | None = None) -> str:
-    token = make_token(store.link_secret(), rec.id, rec.version)
-    base = (base_url or store.get_meta("public_base_url") or DEFAULT_BASE_URL).rstrip("/")
+    from .settings import setting
+    token = make_token(store.link_secret(), rec.id, rec.version, ttl_days=setting("quote_valid_days"))
+    base = (base_url or setting("public_link") or store.get_meta("public_base_url") or DEFAULT_BASE_URL).rstrip("/")
     return f"{base}/q/{token}"
 
 

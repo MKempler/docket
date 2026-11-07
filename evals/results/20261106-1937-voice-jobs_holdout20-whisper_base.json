@@ -1,0 +1,864 @@
+{
+  "jobs_file": "jobs_holdout20.yaml",
+  "model": "qwen3.5-hermes:9b",
+  "whisper": "base",
+  "voices": [
+    "Samantha",
+    "Reed (English (US))",
+    "Eddy (English (US))"
+  ],
+  "vocab_prompt": "Copperline Plumbing & Drain. Quote: customer, address, ZIP. Replace 50-gal gas water heater, Replace toilet, Pull and reset toilet, Install kitchen faucet, Install garbage disposal, Replace shutoff valve, Repipe with 1/2 PEX, Clear drain line, Sewer camera inspection, Haul away old fixture, Water heater permit, 1/2 PEX pipe, 3/4 PEX pipe, PEX fitting, 1/4-turn shutoff valve, Water heater install kit, 2-gal expansion tank, Two-piece toilet, Wax ring and closet bolts, Braided supply line, 1-1/2 P-trap kit, 3/4 HP garbage disposal, hot water heater, gallon heater, gal heater, heater swap, toilet replacement, rocking toilet, shut off valve, angle stop, re-pipe, clogged drain, drain clog.",
+  "ran_at": "2026-11-07T00:37:23+00:00",
+  "jobs": 20,
+  "score": {
+    "plain": 12,
+    "vocab": 16,
+    "plain_parser": 7,
+    "vocab_parser": 10
+  },
+  "model_call_failures": 0,
+  "valid": true,
+  "rows": [
+    {
+      "id": 101,
+      "written": "hey can you price up a hot water heater replacement for Gina Bell, 88 Spruce St 62712. she needs the permit",
+      "spoken": "hey can you price up a hot water heater replacement for Gina Bell, 88 Spruce Street six two seven one two. she needs the permit",
+      "voice": "Samantha",
+      "expected_total": "1937.36",
+      "needs_price": false,
+      "stt_s": 0.99,
+      "plain": {
+        "transcript": "Hey can you price up a hot water heater replacement for Gina Bell, 88 spruce Street 62712 she needs the permit?",
+        "parser_total": "1937.36",
+        "parser_ok": true,
+        "total": "1937.36",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "WH50-REPLACE",
+            "qty": "1",
+            "note": "Replace 50-gal gas water heater"
+          },
+          {
+            "code": "PERMIT-WH",
+            "qty": "1",
+            "note": "Water heater permit requested by owner"
+          }
+        ],
+        "ok": true
+      },
+      "vocab": {
+        "transcript": "Hey can you price up a hot water heater replacement for Gina Bell, 88 spruce street 62712 she needs the permit.",
+        "parser_total": "1937.36",
+        "parser_ok": true,
+        "total": "1937.36",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "WH50-REPLACE",
+            "qty": "1",
+            "note": "Replace 50-gal gas water heater"
+          },
+          {
+            "code": "PERMIT-WH",
+            "qty": "1",
+            "note": "Water heater permit"
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 102,
+      "written": "Harold Kim at 62629 says his toilet wobbles. pull and reset, nothing else",
+      "spoken": "Harold Kim at six two six two nine says his toilet wobbles. pull and reset, nothing else",
+      "voice": "Reed (English (US))",
+      "expected_total": "306.32",
+      "needs_price": false,
+      "stt_s": 0.88,
+      "plain": {
+        "transcript": "Harold Kim at 62629 says his toilet wobbles. Polar reset, nothing else.",
+        "parser_total": "154.00",
+        "parser_ok": false,
+        "total": "306.32",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "TOILET-RESET",
+            "qty": "1",
+            "note": "Pull and reset toilet"
+          }
+        ],
+        "ok": true
+      },
+      "vocab": {
+        "transcript": "Herald Kimber 62629 says his toilet wobbles. Pull and reset, nothing else.",
+        "parser_total": "306.32",
+        "parser_ok": true,
+        "total": "306.32",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "TOILET-RESET",
+            "qty": "1",
+            "note": "Pull and reset toilet"
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 103,
+      "written": "Irene Diaz 62701 - garbage disposal died, put a new one in. she's a club member",
+      "spoken": "Irene Diaz six two seven oh one, garbage disposal died, put a new one in. she's a club member",
+      "voice": "Eddy (English (US))",
+      "expected_total": "460.56",
+      "needs_price": false,
+      "stt_s": 0.65,
+      "plain": {
+        "transcript": "Irene D62701, garbage disposal died, put a new one in she's a club member.",
+        "parser_total": "460.56",
+        "parser_ok": false,
+        "total": "460.56",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "DISPOSAL-INSTALL",
+            "qty": "1",
+            "note": "Includes assembly (unit + install labor)"
+          }
+        ],
+        "ok": true
+      },
+      "vocab": {
+        "transcript": "Irene D is 627-01, garbage disposal died, put a new one in she's a club member.",
+        "parser_total": "460.56",
+        "parser_ok": false,
+        "total": "460.56",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "DISPOSAL-INSTALL",
+            "qty": "1",
+            "note": "Includes assembly (unit + install labor)"
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 104,
+      "written": "Joel Park, 62661: snake the laundry drain tonight, it's backing up",
+      "spoken": "Joel Park, six two six six one, snake the laundry drain tonight, it's backing up",
+      "voice": "Samantha",
+      "expected_total": "356.50",
+      "needs_price": false,
+      "stt_s": 0.69,
+      "plain": {
+        "transcript": "Joel Park, 62661, Snake the Laundry drain tonight, it's backing up.",
+        "parser_total": "356.50",
+        "parser_ok": true,
+        "total": "424.00",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "DRAIN-CLEAR",
+            "qty": "1",
+            "note": "Clear laundry drain line"
+          }
+        ],
+        "ok": false
+      },
+      "vocab": {
+        "transcript": "Joel Park, 62661, Snake the laundry drain tonight, it's backing up.",
+        "parser_total": "356.50",
+        "parser_ok": true,
+        "total": "356.50",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "DRAIN-CLEAR",
+            "qty": "1",
+            "note": ""
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 105,
+      "written": "Kelly Ng 62704 wants 45 feet of 1/2 inch pex repipe for the upstairs bath",
+      "spoken": "Kelly Ng six two seven oh four wants 45 feet of half inch pecks repipe for the upstairs bath",
+      "voice": "Reed (English (US))",
+      "expected_total": "698.41",
+      "needs_price": false,
+      "stt_s": 0.59,
+      "plain": {
+        "transcript": "Keli N62704145 feet of Apench Pex reply for the upstairs bat.",
+        "parser_total": "89.00",
+        "parser_ok": false,
+        "total": "251.93",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "REPIPE-PEX12",
+            "qty": "9",
+            "note": "Repipe with 1/2\" PEX"
+          }
+        ],
+        "ok": false
+      },
+      "vocab": {
+        "transcript": "Re-killing 6-2704-1-45 feet of APEX RE-pipe for the upstairs bed.",
+        "parser_total": "698.41",
+        "parser_ok": true,
+        "total": "698.41",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "REPIPE-PEX12",
+            "qty": "45",
+            "note": "Re-piping with 1/2\" PEX"
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 106,
+      "written": "Liam Ortiz 62707 swap 2 angle stops under the vanity",
+      "spoken": "Liam Ortiz six two seven oh seven swap 2 angle stops under the vanity",
+      "voice": "Eddy (English (US))",
+      "expected_total": "304.47",
+      "needs_price": false,
+      "stt_s": 0.48,
+      "plain": {
+        "transcript": "Lead aboard a 627-07 swap to angle stops under the vanity.",
+        "parser_total": "246.73",
+        "parser_ok": false,
+        "total": "246.73",
+        "needs_price": true,
+        "items": [
+          {
+            "code": "SHUTOFF-REPLACE",
+            "qty": "1",
+            "note": "Work description mentions 'angle stops' but catalog code is SHUTOFF-REPLACE. Assuming replacement of shutoff valves under vanity."
+          }
+        ],
+        "ok": false
+      },
+      "vocab": {
+        "transcript": "Lead aboard a 627-07 swap, two angle stops under the vanity.",
+        "parser_total": "269.47",
+        "parser_ok": false,
+        "total": "269.47",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "SHUTOFF-REPLACE",
+            "qty": "2",
+            "note": "Replace shutoff valve"
+          }
+        ],
+        "ok": false
+      }
+    },
+    {
+      "id": 107,
+      "written": "Mona Reyes 62711, new kitchen faucet and haul the old one away, saturday works",
+      "spoken": "Mona Reyes six two seven one one, new kitchen faucet and haul the old one away, saturday works",
+      "voice": "Samantha",
+      "expected_total": "621.08",
+      "needs_price": false,
+      "stt_s": 0.59,
+      "plain": {
+        "transcript": "Mona Ray S62711, new kitchen faucet and hauled the old one away, Saturday works.",
+        "parser_total": "586.08",
+        "parser_ok": false,
+        "total": "586.08",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "FAUCET-KITCHEN",
+            "qty": "1",
+            "note": ""
+          },
+          {
+            "code": "HAULAWAY",
+            "qty": "1",
+            "note": ""
+          }
+        ],
+        "ok": false
+      },
+      "vocab": {
+        "transcript": "Monoray S62711, new kitchen faucet and haul the old one away, Saturday works.",
+        "parser_total": "586.08",
+        "parser_ok": false,
+        "total": "586.08",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "FAUCET-KITCHEN",
+            "qty": "1",
+            "note": ""
+          },
+          {
+            "code": "HAULAWAY",
+            "qty": "1",
+            "note": ""
+          }
+        ],
+        "ok": false
+      }
+    },
+    {
+      "id": 108,
+      "written": "Ned Fox 62670 sewer smells bad, just scope the line with the camera",
+      "spoken": "Ned Fox six two six seven oh sewer smells bad, just scope the line with the camera",
+      "voice": "Reed (English (US))",
+      "expected_total": "329.00",
+      "needs_price": false,
+      "stt_s": 0.56,
+      "plain": {
+        "transcript": "Net Fox 62670 soar smells bad, just scope the line with the camera.",
+        "parser_total": "329.00",
+        "parser_ok": true,
+        "total": "329.00",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "CAMERA",
+            "qty": "1",
+            "note": ""
+          }
+        ],
+        "ok": true
+      },
+      "vocab": {
+        "transcript": "Net Fox 62670 soar smells bad, just scope the line with the camera.",
+        "parser_total": "329.00",
+        "parser_ok": true,
+        "total": "329.00",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "CAMERA",
+            "qty": "1",
+            "note": ""
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 109,
+      "written": "Opal Gray 62702 urgent - toilet overflowing, replace it today and take the old one",
+      "spoken": "Opal Gray six two seven oh two urgent, toilet overflowing, replace it today and take the old one",
+      "voice": "Eddy (English (US))",
+      "expected_total": "884.06",
+      "needs_price": false,
+      "stt_s": 0.68,
+      "plain": {
+        "transcript": "Opal Grey 62702 Urgent, Toilet Overflowing, Replace it a day and take the old one.",
+        "parser_total": "124.00",
+        "parser_ok": false,
+        "total": "884.06",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "TOILET-REPLACE",
+            "qty": "1",
+            "note": "Urgent replacement"
+          },
+          {
+            "code": "HAULAWAY",
+            "qty": "1",
+            "note": "Remove old unit"
+          }
+        ],
+        "ok": true
+      },
+      "vocab": {
+        "transcript": "Opel grey 62702 urgent, Toilet overflowing, Replace it today and take a old one.",
+        "parser_total": "124.00",
+        "parser_ok": false,
+        "total": "884.06",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "TOILET-REPLACE",
+            "qty": "1",
+            "note": "Replace toilet"
+          },
+          {
+            "code": "HAULAWAY",
+            "qty": "1",
+            "note": "Haul away old unit"
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 110,
+      "written": "Pete Hall 62712: 1.5 hours labor to adjust the pressure regulator",
+      "spoken": "Pete Hall six two seven one two, 1.5 hours labor to adjust the pressure regulator",
+      "voice": "Samantha",
+      "expected_total": "326.50",
+      "needs_price": false,
+      "stt_s": 0.56,
+      "plain": {
+        "transcript": "Heat hall 62712, 1.5 hours labor to adjust the pressure regulator",
+        "parser_total": "326.50",
+        "parser_ok": true,
+        "total": "326.50",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "LABOR",
+            "qty": "1.5",
+            "note": "Labor to adjust pressure regulator"
+          }
+        ],
+        "ok": true
+      },
+      "vocab": {
+        "transcript": "P-tall 62712, 1.5 hours labor to adjust the pressure regulator.",
+        "parser_total": "326.50",
+        "parser_ok": true,
+        "total": "326.50",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "LABOR",
+            "qty": "1.5",
+            "note": "Labor to adjust pressure regulator"
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 111,
+      "written": "Rita Cho 62629 install a gas line for a new range",
+      "spoken": "Rita Cho six two six two nine install a gas line for a new range",
+      "voice": "Reed (English (US))",
+      "expected_total": "154.00",
+      "needs_price": true,
+      "stt_s": 0.55,
+      "plain": {
+        "transcript": "Read a show 62629 install the gas line for a new range.",
+        "parser_total": "154.00",
+        "parser_ok": true,
+        "total": "154.00",
+        "needs_price": true,
+        "items": [],
+        "ok": true
+      },
+      "vocab": {
+        "transcript": "Read a show 6-26-29 install the gas line for a new range.",
+        "parser_total": "89.00",
+        "parser_ok": true,
+        "total": "89.00",
+        "needs_price": true,
+        "items": [],
+        "ok": true
+      }
+    },
+    {
+      "id": 112,
+      "written": "Steve Wolf 62703 two toilet replacements and 3 new shutoffs, he's a member",
+      "spoken": "Steve Wolf six two seven oh three two toilet replacements and 3 new shutoffs, he's a member",
+      "voice": "Eddy (English (US))",
+      "expected_total": "1414.07",
+      "needs_price": false,
+      "stt_s": 0.63,
+      "plain": {
+        "transcript": "Steve Wolf 627032 Toilet Replacements and 3 new shutoffs, he's a member.",
+        "parser_total": "709.79",
+        "parser_ok": false,
+        "total": "1951.38",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "TOILET-REPLACE",
+            "qty": "3",
+            "note": "Replaces toilet"
+          },
+          {
+            "code": "SHUTOFF-REPLACE",
+            "qty": "3",
+            "note": "Replaces shutoff valve"
+          }
+        ],
+        "ok": false
+      },
+      "vocab": {
+        "transcript": "Steve Wolf 627032 Toilet replacement and 3 new shutoffs, he's a member.",
+        "parser_total": "709.79",
+        "parser_ok": false,
+        "total": "876.76",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "TOILET-REPLACE",
+            "qty": "1",
+            "note": "Includes toilet, wax ring, and install labor"
+          },
+          {
+            "code": "SHUTOFF-REPLACE",
+            "qty": "3",
+            "note": "Material only (shutoff valves)"
+          }
+        ],
+        "ok": false
+      }
+    },
+    {
+      "id": 113,
+      "written": "Tara Bloom 62661 water heater swap on sunday, haul away, no permit",
+      "spoken": "Tara Bloom six two six six one water heater swap on sunday, haul away, no permit",
+      "voice": "Samantha",
+      "expected_total": "2018.61",
+      "needs_price": false,
+      "stt_s": 0.61,
+      "plain": {
+        "transcript": "Terra Bloom 62661 Water Heater Swap on Sunday, Hall Away, No Permit",
+        "parser_total": "2068.61",
+        "parser_ok": false,
+        "total": "1983.61",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "WH50-REPLACE",
+            "qty": "1",
+            "note": "Replace 50-gal gas water heater"
+          }
+        ],
+        "ok": false
+      },
+      "vocab": {
+        "transcript": "Terra Bloom 62661 Water heater swap on Sunday, Haul away, no permit.",
+        "parser_total": "2103.61",
+        "parser_ok": false,
+        "total": "2018.61",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "WH50-REPLACE",
+            "qty": "1",
+            "note": "Replace 50-gal gas water heater"
+          },
+          {
+            "code": "HAULAWAY",
+            "qty": "1",
+            "note": "Haul away old unit"
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 114,
+      "written": "Uri Cohen 62701 clear the kitchen drain and replace the disposal while there",
+      "spoken": "Uri Cohen six two seven oh one clear the kitchen drain and replace the disposal while there",
+      "voice": "Reed (English (US))",
+      "expected_total": "609.06",
+      "needs_price": false,
+      "stt_s": 0.58,
+      "plain": {
+        "transcript": "See where you go in 62701, clear the kitchen drain and replace the disposal while there.",
+        "parser_total": "609.06",
+        "parser_ok": true,
+        "total": "609.06",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "DRAIN-CLEAR",
+            "qty": "1",
+            "note": ""
+          },
+          {
+            "code": "DISPOSAL-INSTALL",
+            "qty": "1",
+            "note": ""
+          }
+        ],
+        "ok": true
+      },
+      "vocab": {
+        "transcript": "Sewer eco in 627-01, Clear the kitchen drain and replace the disposal while there.",
+        "parser_total": "609.06",
+        "parser_ok": true,
+        "total": "609.06",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "DRAIN-CLEAR",
+            "qty": "1",
+            "note": ""
+          },
+          {
+            "code": "DISPOSAL-INSTALL",
+            "qty": "1",
+            "note": ""
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 115,
+      "written": "Val Moreno 62711 needs 30 ft of 3/4 PEX pipe dropped off, materials only, plus 1 hour labor to stage it",
+      "spoken": "Val Moreno six two seven one one needs 30 ft of three quarter pecks pipe dropped off, materials only, plus 1 hour labor to stage it",
+      "voice": "Eddy (English (US))",
+      "expected_total": "320.70",
+      "needs_price": false,
+      "stt_s": 0.69,
+      "plain": {
+        "transcript": "Valmorino 62711 needs 30 feet of 3 quarter pegs pipe dropped off, materials only, plus 1 hour labor to stage it.",
+        "parser_total": "259.00",
+        "parser_ok": false,
+        "total": "320.70",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "PEX34",
+            "qty": "30",
+            "note": "Material only"
+          },
+          {
+            "code": "LABOR",
+            "qty": "1",
+            "note": "Labor only"
+          }
+        ],
+        "ok": true
+      },
+      "vocab": {
+        "transcript": "The valve marino 62711 needs 30 feet of 3-quarter PEX pipe dropped off, Materials only, plus 1 hour labor to stage it.",
+        "parser_total": "665.27",
+        "parser_ok": false,
+        "total": "320.70",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "PEX34",
+            "qty": "30",
+            "note": "30 feet of 3/4\" PEX pipe"
+          },
+          {
+            "code": "LABOR",
+            "qty": "1",
+            "note": "1 hour labor to stage"
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 116,
+      "written": "Walt Ames 62707 replace the leaking shutoff valve, evening visit",
+      "spoken": "Walt Ames six two seven oh seven replace the leaking shutoff valve, evening visit",
+      "voice": "Samantha",
+      "expected_total": "349.23",
+      "needs_price": false,
+      "stt_s": 0.51,
+      "plain": {
+        "transcript": "While Game 627-07 replaced the leaking shutoff valve, evening visit.",
+        "parser_total": "314.23",
+        "parser_ok": false,
+        "total": "314.23",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "SHUTOFF-REPLACE",
+            "qty": "1",
+            "note": "Replacing leaking shutoff valve"
+          }
+        ],
+        "ok": false
+      },
+      "vocab": {
+        "transcript": "Wall game 627-07 Replace the leaking shutoff valve, evening visit.",
+        "parser_total": "314.23",
+        "parser_ok": false,
+        "total": "314.23",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "SHUTOFF-REPLACE",
+            "qty": "1",
+            "note": "Replace leaking shutoff valve"
+          }
+        ],
+        "ok": false
+      }
+    },
+    {
+      "id": 117,
+      "written": "Xia Lin 62704 kitchen faucet, garbage disposal, and a camera inspection of the main",
+      "spoken": "Xia Lin six two seven oh four kitchen faucet, garbage disposal, and a camera inspection of the main",
+      "voice": "Reed (English (US))",
+      "expected_total": "1068.95",
+      "needs_price": false,
+      "stt_s": 0.55,
+      "plain": {
+        "transcript": "Shaolin 62704 kitchen faucet, garbage disposal, and a camera inspection of the main.",
+        "parser_total": "1068.95",
+        "parser_ok": true,
+        "total": "1068.95",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "FAUCET-KITCHEN",
+            "qty": "1",
+            "note": "Kitchen faucet"
+          },
+          {
+            "code": "DISPOSAL-INSTALL",
+            "qty": "1",
+            "note": "Garbage disposal"
+          },
+          {
+            "code": "CAMERA",
+            "qty": "1",
+            "note": "Sewer camera inspection of the main"
+          }
+        ],
+        "ok": true
+      },
+      "vocab": {
+        "transcript": "Shaolin 62704 kitchen faucet, garbage disposal, and a camera inspection of the main.",
+        "parser_total": "1068.95",
+        "parser_ok": true,
+        "total": "1068.95",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "FAUCET-KITCHEN",
+            "qty": "1",
+            "note": "Kitchen faucet"
+          },
+          {
+            "code": "DISPOSAL-INSTALL",
+            "qty": "1",
+            "note": "Garbage disposal"
+          },
+          {
+            "code": "CAMERA",
+            "qty": "1",
+            "note": "Sewer camera inspection of the main"
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 118,
+      "written": "Yara Nasser 62888 replace water heater",
+      "spoken": "Yara Nasser six two eight eight eight replace water heater",
+      "voice": "Eddy (English (US))",
+      "expected_total": "1817.36",
+      "needs_price": true,
+      "stt_s": 0.62,
+      "plain": {
+        "transcript": "We are a NASA 6288 through Police Water either.",
+        "parser_total": "89.00",
+        "parser_ok": false,
+        "total": "89.00",
+        "needs_price": true,
+        "items": [],
+        "ok": true
+      },
+      "vocab": {
+        "transcript": "We are a NASA 6288-RuPlace water heater.",
+        "parser_total": "1817.36",
+        "parser_ok": false,
+        "total": "89.00",
+        "needs_price": true,
+        "items": [],
+        "ok": true
+      }
+    },
+    {
+      "id": 119,
+      "written": "Zack Hill 62670 repipe 75 feet half inch pex, weekend job, member",
+      "spoken": "Zack Hill six two six seven oh repipe 75 feet half inch pecks, weekend job, member",
+      "voice": "Samantha",
+      "expected_total": "1265.51",
+      "needs_price": false,
+      "stt_s": 0.6,
+      "plain": {
+        "transcript": "Zach Hill 6267 will repipe 75 feet \u00bd inch pegs, we can job, member.",
+        "parser_total": "1018.26",
+        "parser_ok": false,
+        "total": "1018.26",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "REPIPE-PEX12",
+            "qty": "75",
+            "note": ""
+          }
+        ],
+        "ok": false
+      },
+      "vocab": {
+        "transcript": "Zach Hill 62670 repipe 75-feet-half-inch PEX, Weekend job, member.",
+        "parser_total": "312.58",
+        "parser_ok": false,
+        "total": "1265.51",
+        "needs_price": false,
+        "items": [
+          {
+            "code": "REPIPE-PEX12",
+            "qty": "75",
+            "note": ""
+          }
+        ],
+        "ok": true
+      }
+    },
+    {
+      "id": 120,
+      "written": "Amy Lord 62702 reset two toilets and install a heated bidet seat",
+      "spoken": "Amy Lord six two seven oh two reset two toilets and install a heated bidet seat",
+      "voice": "Reed (English (US))",
+      "expected_total": "393.64",
+      "needs_price": true,
+      "stt_s": 0.49,
+      "plain": {
+        "transcript": "Amy Lord 62702 reset to toilets and install a heated bidet seat.",
+        "parser_total": "241.32",
+        "parser_ok": false,
+        "total": "241.32",
+        "needs_price": true,
+        "items": [
+          {
+            "code": "TOILET-RESET",
+            "qty": "1",
+            "note": "Reset toilet"
+          }
+        ],
+        "ok": true
+      },
+      "vocab": {
+        "transcript": "Amy Lord 62702 reset toilet, and install a heated bidet seat.",
+        "parser_total": "241.32",
+        "parser_ok": true,
+        "total": "241.32",
+        "needs_price": true,
+        "items": [
+          {
+            "code": "TOILET-RESET",
+            "qty": "1",
+            "note": "Reset toilet"
+          }
+        ],
+        "ok": true
+      }
+    }
+  ]
+}

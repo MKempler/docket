@@ -85,7 +85,8 @@ def close_out(store: Store, book: PriceBook, quote_id: int, *, outbox_root: Path
         raise InvoiceError("Some work needs a price before invoicing: " + "; ".join(doc.needs_price))
 
     issued = today or date.today()
-    due = issued + timedelta(days=DUE_DAYS)
+    from .settings import setting
+    due = issued + timedelta(days=setting("invoice_due_days"))
     with store.lock, store.conn:
         next_id = (store.conn.execute("SELECT MAX(id) FROM invoices").fetchone()[0] or FIRST_INVOICE_NUMBER - 1) + 1
         store.conn.execute(
@@ -150,5 +151,5 @@ def obol_payload(invoice: dict) -> dict:
         items.append({"description": f"{doc['tax_name']} {fmt_qty(Decimal(doc['tax_rate']) * 100)}% on materials",
                       "amount": float(Decimal(doc["tax"])), "quantity": 1})
     return {"customer_email": invoice["customer"]["email"], "customer_name": invoice["customer"]["name"],
-            "line_items": items, "currency": cur.lower(), "days_until_due": DUE_DAYS,
+            "line_items": items, "currency": cur.lower(), "days_until_due": max(0, (date.fromisoformat(invoice["due"]) - date.fromisoformat(invoice["issued"][:10])).days),
             "memo": f"{invoice['number']} for quote {invoice['quote_number']} (Docket)", "send": False}

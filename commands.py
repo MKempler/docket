@@ -167,16 +167,26 @@ def docket_admin(raw_args: str = "", **kwargs) -> str:
             if not value:
                 return f"Customer links use: {runtime.ensure_accept_server()}"
             if value.lower() == "local":
-                runtime.store().set_meta("public_base_url", "")
+                _save_public_link("")
                 return "Customer links will use the local accept page."
             if not value.startswith(("https://", "http://")):
                 return "Give a full URL, e.g. https://quotes.example.com"
-            runtime.store().set_meta("public_base_url", value.rstrip("/"))
+            _save_public_link(value.rstrip("/"))
             return f"Customer links will use {value.rstrip('/')}. Make sure it forwards to this machine's accept page."
         return DOCKET_HELP
     except Exception as exc:
         logger.exception("/docket failed")
         return f"Docket hit an error: {type(exc).__name__}: {exc}"
+
+
+def _save_public_link(value: str) -> None:
+    """One source of truth: the 'Public link for customers' setting (Desktop shows it). Older meta is cleared."""
+    try:
+        runtime.CTX.set_config("public_link", value)
+    except Exception:
+        runtime.store().set_meta("public_base_url", value)
+        return
+    runtime.store().set_meta("public_base_url", "")
 
 
 def cli_setup(subparser) -> None:

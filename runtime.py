@@ -39,9 +39,10 @@ def reset_for_tests(s: Store | None = None) -> None:
 
 
 def book() -> tuple[PriceBook | None, list, Path, bool]:
+    from .settings import apply_business
     path, is_demo = pricebook_path()
     b, errors = load_pricebook(path)
-    return b, errors, path, is_demo
+    return apply_business(b), errors, path, is_demo
 
 
 def require_book() -> PriceBook:
@@ -92,7 +93,13 @@ def ensure_accept_server() -> str:
     """Start the local accept page if needed; return the base URL customer links should use."""
     from .accept_server import ensure_running
     local = ensure_running(accept_app())
-    return store().get_meta("public_base_url") or local
+    return public_link() or local
+
+
+def public_link() -> str:
+    """The owner's public base URL for customer links ('' = this computer only)."""
+    from .settings import setting
+    return setting("public_link") or store().get_meta("public_base_url") or ""
 
 
 class _TaskLLM:
