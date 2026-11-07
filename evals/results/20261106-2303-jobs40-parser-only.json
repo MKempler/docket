@@ -1,0 +1,453 @@
+{
+  "jobs_file": "jobs40.yaml",
+  "model": null,
+  "arm": "parser-only",
+  "ran_at": "2026-11-07T04:03:08+00:00",
+  "jobs": 40,
+  "score": {
+    "parser": 27
+  },
+  "valid": true,
+  "rows": [
+    {
+      "id": 1,
+      "text": "Dana Henderson, 14 Maple St 62707 - 50 gal gas water heater swap, permit, haul away the old unit",
+      "expected_total": "1972.36",
+      "needs_price": false,
+      "parser": {
+        "total": "1972.36",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 2,
+      "text": "Kim Lee 62711 two toilets rocking, need a pull and reset on both",
+      "expected_total": "428.64",
+      "needs_price": false,
+      "parser": {
+        "total": "276.32",
+        "needs_price": false,
+        "ok": false
+      }
+    },
+    {
+      "id": 3,
+      "text": "Mike O'Brien 62712, new kitchen faucet plus a disposal install, he wants it done tonight after hours",
+      "expected_total": "1080.83",
+      "needs_price": false,
+      "parser": {
+        "total": "1080.83",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 4,
+      "text": "Pat Jones 62629 main line backing up, snake it and run the camera down it",
+      "expected_total": "464.00",
+      "needs_price": false,
+      "parser": {
+        "total": "329.00",
+        "needs_price": false,
+        "ok": false
+      }
+    },
+    {
+      "id": 5,
+      "text": "Grace Liu 62703 shutoff under the kitchen sink is leaking everywhere, emergency",
+      "expected_total": "381.73",
+      "needs_price": false,
+      "parser": {
+        "total": "381.73",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 6,
+      "text": "Sam Patel 62704 replace the upstairs toilet and haul the old one off",
+      "expected_total": "681.56",
+      "needs_price": false,
+      "parser": {
+        "total": "681.56",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 7,
+      "text": "Ray Ortiz 62701, repipe the bathroom, about 38 feet of half inch PEX, he's a member",
+      "expected_total": "561.85",
+      "needs_price": false,
+      "parser": {
+        "total": "578.28",
+        "needs_price": false,
+        "ok": false
+      }
+    },
+    {
+      "id": 8,
+      "text": "Ana Ruiz, 62661, kitchen sink clogged again, she can only do saturday",
+      "expected_total": "322.75",
+      "needs_price": false,
+      "parser": {
+        "total": "154.00",
+        "needs_price": false,
+        "ok": false
+      }
+    },
+    {
+      "id": 9,
+      "text": "Tom Becker 62702: replace 3 shutoff valves (laundry and both toilets)",
+      "expected_total": "359.70",
+      "needs_price": false,
+      "parser": {
+        "total": "359.70",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 10,
+      "text": "Lisa Grant 62707: water heater died, needs replacing asap. expansion tank comes with it right? permit too",
+      "expected_total": "2342.36",
+      "needs_price": false,
+      "parser": {
+        "total": "2342.36",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 11,
+      "text": "Omar Haddad 62670 - 120 ft PEX repipe, whole house, member, wants to start on the weekend",
+      "expected_total": "1930.26",
+      "needs_price": false,
+      "parser": {
+        "total": "1930.26",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 12,
+      "text": "Jen Wu 62711, install a new garbage disposal and swap out the p-trap kit while you're there",
+      "expected_total": "539.37",
+      "needs_price": false,
+      "parser": {
+        "total": "509.06",
+        "needs_price": false,
+        "ok": false
+      }
+    },
+    {
+      "id": 13,
+      "text": "Chris Doyle 62703 needs 2 hours of labor to track down a leak behind the washer",
+      "expected_total": "359.00",
+      "needs_price": false,
+      "parser": {
+        "total": "359.00",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 14,
+      "text": "Bea Silva 62712: replace toilet x2, one in each bath, haul both old ones away",
+      "expected_total": "1309.12",
+      "needs_price": false,
+      "parser": {
+        "total": "1274.12",
+        "needs_price": false,
+        "ok": false
+      }
+    },
+    {
+      "id": 15,
+      "text": "Hank Moore 62629 emergency, drain backing up into the basement on a sunday. clear it and camera it",
+      "expected_total": "599.00",
+      "needs_price": false,
+      "parser": {
+        "total": "329.00",
+        "needs_price": false,
+        "ok": false
+      }
+    },
+    {
+      "id": 16,
+      "text": "Ivy Chen 62701 kitchen faucet replacement, she's a member",
+      "expected_total": "492.01",
+      "needs_price": false,
+      "parser": {
+        "total": "492.01",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 17,
+      "text": "Jack Ross 62707 reset the toilet in the half bath, evening appointment",
+      "expected_total": "343.82",
+      "needs_price": false,
+      "parser": {
+        "total": "343.82",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 18,
+      "text": "Kara Novak 62704: 15 ft of 3/4 inch PEX pipe to run a new line to the garage, plus 2 hrs labor",
+      "expected_total": "389.85",
+      "needs_price": false,
+      "parser": {
+        "total": "389.85",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 19,
+      "text": "Leo Park 62711 water heater replacement, permit, haul away, he's a member, saturday",
+      "expected_total": "2022.98",
+      "needs_price": false,
+      "parser": {
+        "total": "2022.98",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 20,
+      "text": "Maya Ford 62661 one kitchen faucet and two extra braided supply lines for the bathroom sink",
+      "expected_total": "612.86",
+      "needs_price": false,
+      "parser": {
+        "total": "593.38",
+        "needs_price": false,
+        "ok": false
+      }
+    },
+    {
+      "id": 21,
+      "text": "Nate Cole 62702 wants a tankless water heater installed",
+      "expected_total": "89.00",
+      "needs_price": true,
+      "parser": {
+        "total": "89.00",
+        "needs_price": true,
+        "ok": true
+      }
+    },
+    {
+      "id": 22,
+      "text": "Olga Ivanova 62707 fix the lawn sprinkler system",
+      "expected_total": "124.00",
+      "needs_price": true,
+      "parser": {
+        "total": "124.00",
+        "needs_price": true,
+        "ok": true
+      }
+    },
+    {
+      "id": 23,
+      "text": "Paul Reed 62999 clogged drain",
+      "expected_total": "224.00",
+      "needs_price": true,
+      "parser": {
+        "total": "224.00",
+        "needs_price": true,
+        "ok": true
+      }
+    },
+    {
+      "id": 24,
+      "text": "Quinn Hart 62703 replace toilet and also re-tile the bathroom floor",
+      "expected_total": "646.56",
+      "needs_price": true,
+      "parser": {
+        "total": "646.56",
+        "needs_price": false,
+        "ok": false
+      }
+    },
+    {
+      "id": 25,
+      "text": "Rosa Diaz 62712, 25 feet of half inch PEX repipe, after hours",
+      "expected_total": "599.36",
+      "needs_price": false,
+      "parser": {
+        "total": "599.36",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 26,
+      "text": "Sean Burke 62629, shutoff valve replacement x4 and a camera inspection of the sewer line",
+      "expected_total": "689.93",
+      "needs_price": false,
+      "parser": {
+        "total": "486.73",
+        "needs_price": false,
+        "ok": false
+      }
+    },
+    {
+      "id": 27,
+      "text": "Tina Moss 62670 disposal install, she's a member, weekend please",
+      "expected_total": "555.93",
+      "needs_price": false,
+      "parser": {
+        "total": "555.93",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 28,
+      "text": "Uma Shah 62701 just the sewer camera inspection, nothing else",
+      "expected_total": "264.00",
+      "needs_price": false,
+      "parser": {
+        "total": "264.00",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 29,
+      "text": "Vic Lane 62704 3 toilet resets plus 1 new toilet, haul away the old one",
+      "expected_total": "1138.52",
+      "needs_price": false,
+      "parser": {
+        "total": "833.88",
+        "needs_price": false,
+        "ok": false
+      }
+    },
+    {
+      "id": 30,
+      "text": "Wes Grant 62711 emergency water heater swap, it's flooding the garage. permit and haul away",
+      "expected_total": "2377.36",
+      "needs_price": false,
+      "parser": {
+        "total": "2377.36",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 31,
+      "text": "Xena Kim 62707 slow drain in the tub, snake it out",
+      "expected_total": "259.00",
+      "needs_price": false,
+      "parser": {
+        "total": "259.00",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 32,
+      "text": "Yusuf Ali 62661, 60 ft PEX repipe and a new kitchen faucet, he's a member",
+      "expected_total": "1299.34",
+      "needs_price": false,
+      "parser": {
+        "total": "1299.34",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 33,
+      "text": "Zoe Hunt 62712 two disposals, one in the kitchen and one at the wet bar",
+      "expected_total": "894.12",
+      "needs_price": false,
+      "parser": {
+        "total": "894.12",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 34,
+      "text": "Adam Fox 62702, 7.5 ft of PEX repipe under the kitchen",
+      "expected_total": "244.57",
+      "needs_price": false,
+      "parser": {
+        "total": "244.57",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 35,
+      "text": "Beth Lowe 62703 replace water heater. no permit needed per the county, and she's keeping the old unit",
+      "expected_total": "1817.36",
+      "needs_price": false,
+      "parser": {
+        "total": "1902.36",
+        "needs_price": false,
+        "ok": false
+      }
+    },
+    {
+      "id": 36,
+      "text": "Carl Yates 62629 toilet replacement, saturday, he's a member",
+      "expected_total": "736.88",
+      "needs_price": false,
+      "parser": {
+        "total": "736.88",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 37,
+      "text": "Dina Rao 62711 3.5 hours labor to rebuild a shower valve",
+      "expected_total": "596.50",
+      "needs_price": false,
+      "parser": {
+        "total": "596.50",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 38,
+      "text": "Eli Stone 62704 install a whole-house water softener",
+      "expected_total": "89.00",
+      "needs_price": true,
+      "parser": {
+        "total": "89.00",
+        "needs_price": true,
+        "ok": true
+      }
+    },
+    {
+      "id": 39,
+      "text": "Faye Moon 62670, after-hours call: shutoff valve and a toilet reset",
+      "expected_total": "497.80",
+      "needs_price": false,
+      "parser": {
+        "total": "497.80",
+        "needs_price": false,
+        "ok": true
+      }
+    },
+    {
+      "id": 40,
+      "text": "Gus Kerr 62707 kitchen faucet, disposal, 2 shutoff valves, haul away the old disposal. member. emergency",
+      "expected_total": "1495.41",
+      "needs_price": false,
+      "parser": {
+        "total": "1988.47",
+        "needs_price": false,
+        "ok": false
+      }
+    }
+  ]
+}

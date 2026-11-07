@@ -202,14 +202,22 @@ def render_card_png(book: PriceBook, rec: QuoteRecord, *, width: int = 1080) -> 
     """Owner-facing card: every line with the rule that priced it, totals, status. For Telegram and Desktop."""
     from PIL import Image, ImageDraw, ImageFont
 
-    def font(size: int):
+    def font(size: int, bold: bool = False):
+        # Bitstream Vera ships with reportlab (a Docket dependency) and, unlike Pillow's built-in font, has
+        # ×, dashes, € and £, so quantities and non-US prices never render as empty boxes.
+        import os
+        import reportlab
+        path = os.path.join(os.path.dirname(reportlab.__file__), "fonts", "VeraBd.ttf" if bold else "Vera.ttf")
         try:
-            return ImageFont.load_default(size=size)
-        except TypeError:  # very old Pillow without FreeType default
-            return ImageFont.load_default()
+            return ImageFont.truetype(path, size)
+        except OSError:
+            try:
+                return ImageFont.load_default(size=size)
+            except TypeError:  # very old Pillow without FreeType default
+                return ImageFont.load_default()
 
     q, cur = rec.quote, rec.quote.get("currency", book.currency)
-    f_title, f_big, f_body, f_small = font(44), font(40), font(30), font(23)
+    f_title, f_big, f_body, f_small = font(42, bold=True), font(38, bold=True), font(28), font(22)
     pad, inner = 56, width - 112
     rows: list[tuple[str, Any]] = []
     for line in q["lines"]:
@@ -232,12 +240,14 @@ def render_card_png(book: PriceBook, rec: QuoteRecord, *, width: int = 1080) -> 
 
     blocks = []
     for _, line in rows:
-        desc = line["description"] + (f"  ×{_qty_label(line)}" if _qty_label(line) else "")
+        desc = line["description"] + (f"  × {_qty_label(line)}" if _qty_label(line) else "")
         rule = line["rule"] if line["kind"] != "needs_price" else "Not in your price book. Add a price before sending."
         blocks.append((wrap(desc, f_body, inner - 230), wrap(rule, f_small, inner), line))
     height = pad + 60 + 50 + 30 + sum(len(d) * 40 + len(r) * 30 + 34 for d, r, _ in blocks) + 210 + pad
     img = Image.new("RGB", (width, height), BG)
     d = ImageDraw.Draw(img)
+    _draw_text = d.text
+    d.text = lambda xy, text, *a, **k: _draw_text(xy, str(text).replace("→", "->").replace("✓", "").replace("\u2713", ""), *a, **k)  # noqa: E731
 
     y = pad
     d.text((pad, y), f"{rec.number}  v{rec.version}", font=f_title, fill=INK)

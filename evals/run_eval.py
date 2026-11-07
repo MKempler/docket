@@ -124,6 +124,27 @@ def score_total(expected_total: Decimal, needs_price: bool, got_total, got_needs
         return False
 
 
+def run_parser_only(book, jobs, args) -> dict:
+    """Re-score only Docket's built-in parser (deterministic, no model): its own result file."""
+    rows = []
+    for job in jobs:
+        expected, expected_needs = truth_quote(book, job).total, bool(job.get("needs_price"))
+        pq = price(book, spec_from_args(parse_words(book, job["text"]).args))
+        rows.append({"id": job["id"], "text": job["text"], "expected_total": str(expected), "needs_price": expected_needs,
+                     "parser": {"total": str(pq.total), "needs_price": not pq.complete,
+                                "ok": score_total(expected, expected_needs, pq.total, not pq.complete)}})
+    score = sum(1 for r in rows if r["parser"]["ok"])
+    result = {"jobs_file": args.jobs, "model": None, "arm": "parser-only",
+              "ran_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "jobs": len(rows),
+              "score": {"parser": score}, "valid": True, "rows": rows}
+    out_dir = HERE / "results"
+    out_dir.mkdir(exist_ok=True)
+    name = f"{datetime.now():%Y%m%d-%H%M}-{Path(args.jobs).stem}-parser-only.json"
+    (out_dir / name).write_text(json.dumps(result, indent=2))
+    print(f"Docket parser (no model): {score}/{len(rows)}  -> evals/results/{name}")
+    return result
+
+
 def run(args) -> dict:
     from ruamel.yaml import YAML
     book, errors = load_pricebook(BOOK_PATH)
@@ -131,6 +152,8 @@ def run(args) -> dict:
     jobs = YAML(typ="safe").load((HERE / args.jobs).read_text())["jobs"]
     if args.limit:
         jobs = jobs[: args.limit]
+    if args.parser_only:
+        return run_parser_only(book, jobs, args)
     llm = OpenAICompatLLM(args.base_url, args.model, args.api_key, args.reasoning_effort)
     book_yaml = BOOK_PATH.read_text()
     rows = []
@@ -198,4 +221,5 @@ if __name__ == "__main__":
     ap.add_argument("--reasoning-effort", default="none")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--jobs", default="jobs40.yaml")
+    ap.add_argument("--parser-only", action="store_true", help="re-score only the built-in parser (no model calls)")
     run(ap.parse_args())

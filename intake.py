@@ -35,6 +35,8 @@ LENGTH_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:ft|feet|foot|')\b", re.I)
 TIMES_RE = re.compile(r"(?:\b(\d{1,2})\s*x\b|\bx\s*(\d{1,2})\b|\bqty\s*(\d{1,3})\b)", re.I)
 LEADING_COUNT_RE = re.compile(r"^\s*(\d{1,2})\s+(?!(?:gal|gallon|gallons|in|inch|inches|hp|amp|amps|\"|mm|ft|feet|foot)\b)", re.I)
 WORD_NUMBERS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
+SIZE_WORDS = r"gal|gallon|gallons|in|inch|inches|hp|amp|amps|mm|ft|feet|foot|v|volt|volts|hour|hours|hr|hrs|h|ton|psi"
+INNER_COUNT_RE = re.compile(r"(?<![\d./-])(\d{1,2})\s+(?!(?:" + SIZE_WORDS + r")\b)([A-Za-z][\w'-]*)", re.I)
 LEADING_WORD_RE = re.compile(r"^\s*(one|two|three|four|five|six)\s+", re.I)
 SPLIT_RE = re.compile(r"[,;:\n!?]+|(?<!\d)\.(?!\d)")
 LABOR_HOURS_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\b(?:\s+(?:of\s+)?(?:labor|labour|work|extra))?", re.I)
@@ -220,6 +222,11 @@ def _qty_for(book: PriceBook, code: str, segment: str, *, single: bool) -> str:
     m = LEADING_WORD_RE.match(segment)
     if m:
         return str(WORD_NUMBERS[m.group(1).lower()])
+    # a count right before one of this item's own words: "reset 2 toilets", "swap 3 angle stops"
+    item_words = {w for phrase in (entry.name, *entry.aliases) for w in _tokens(phrase)} - FILLER
+    for m in INNER_COUNT_RE.finditer(segment):
+        if 1 < int(m.group(1)) <= 12 and _stem(m.group(2)) in item_words:
+            return m.group(1)
     return "1"
 
 

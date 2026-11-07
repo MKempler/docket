@@ -165,3 +165,13 @@ def test_stated_labor_hours_survive_a_model_that_calls_them_unpriced():
     llm = FakeLLM({"items": [], "unpriced": ["plus 1 hour labor"]})
     r = intake(BOOK, "plus 1 hour labor", llm)
     assert codes(r) == {"LABOR": "1"} and r.args["unpriced"] == []
+
+
+@pytest.mark.parametrize("text, code, qty", [
+    ("Kim Lee 62711, pull and reset two toilets", "TOILET-RESET", "2"),
+    ("Liam 62707 swap 2 angle stops under the vanity", "SHUTOFF-REPLACE", "2"),
+    ("Ray 62701 replace 3 shutoff valves", "SHUTOFF-REPLACE", "3"),
+    ("Dana 62707 swap the 50 gallon gas water heater", "WH50-REPLACE", "1"),      # a size, not a count
+])
+def test_parser_reads_a_count_before_the_items_own_word(text, code, qty):
+    assert parse_words(BOOK, text).args["items"] == [{"code": code, "qty": qty}]

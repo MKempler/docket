@@ -92,18 +92,18 @@ flowchart LR
 
 A prompt can describe a price book. It can't guarantee the arithmetic. We measured it on **60 messy, real-world job descriptions**, with the **same local model** both ways:
 
-<p align="center"><img src="assets/eval-chart.png" alt="Exact quotes: bare model 8/40 and 3/20; Docket parser 26/40 and 15/20; Docket 37/40 and 19/20" width="92%"></p>
+<p align="center"><img src="assets/eval-chart.png" alt="Exact quotes: bare model 8/40 and 3/20; Docket parser 27/40 and 16/20; Docket 37/40 and 19/20" width="92%"></p>
 
 | | Original 40 jobs | Held-out 20 jobs (never tuned on) |
 |---|---:|---:|
 | Bare model, given the full price book and every pricing rule | 8 / 40 | 3 / 20 |
-| Docket's built-in parser, no model at all | 26 / 40 | 15 / 20 |
+| Docket's built-in parser, no model at all | 27 / 40 | 16 / 20 |
 | **Docket (same model, words → codes, code prices)** | **37 / 40** | **19 / 20** |
 
 - **How a job is scored:** exact to the cent, or correctly flagged when the price book can't price the work.
 - **What the bare model got wrong:** totals off by hundreds of dollars, and a confident **$1,815.74** for a water heater at a ZIP code the price book doesn't cover.
 - **Docket's misses:** all 4 across both sets were *safe*: the total was right, but Docket added a needs-price line that blocks sending until you look.
-- **Reproduce it:** `python evals/run_eval.py` (any OpenAI-compatible endpoint), then `python evals/make_chart.py` redraws this chart from the result files. The job sets with hand-written ground truth and every raw result file are in [`evals/`](evals).
+- **Reproduce it:** `python evals/run_eval.py` (any OpenAI-compatible endpoint), then `python evals/make_chart.py` redraws this chart from the result files. (The parser row was re-scored with `--parser-only` after a fix to how it reads counts like *"reset 2 toilets"*; that file is in `evals/results/` too.) The job sets with hand-written ground truth and every raw result file are in [`evals/`](evals).
 
 > [!NOTE]
 > Model: Qwen 3.5 9B running locally in Ollama, thinking off. Bigger cloud models do better on their own, but the point stands: arithmetic belongs in code.
@@ -313,7 +313,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 ```bash
 git clone https://github.com/MKempler/docket && cd docket
 uv venv .venv && uv pip install --python .venv/bin/python -r requirements-dev.txt
-.venv/bin/python -m pytest -q                                     # 143 tests; CI runs them on Python 3.11–3.14
+.venv/bin/python -m pytest -q                                     # 147 tests; CI runs them on Python 3.11–3.14
 hermes plugins doctor docket --ci && hermes plugins validate docket --install-deps
 ```
 

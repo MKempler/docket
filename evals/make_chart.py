@@ -1,6 +1,10 @@
 """Draw assets/eval-chart.png from two run_eval.py result files, so the README chart always matches the data.
 
-    python evals/make_chart.py evals/results/<...jobs40...>.json evals/results/<...holdout20...>.json
+    python evals/make_chart.py evals/results/<...jobs40...>.json evals/results/<...holdout20...>.json \
+        [evals/results/<...jobs40-parser-only>.json evals/results/<...holdout20-parser-only>.json]
+
+The optional parser-only files (run_eval.py --parser-only) replace the parser bars, for when the built-in parser
+changed after the full run.
 """
 
 from __future__ import annotations
@@ -20,8 +24,14 @@ ARMS = [("bare", "Bare model, full price book + rules", "#EB6834"),
 GROUPS = ["Original 40 jobs", "Held-out 20 jobs\n(never tuned on)"]
 
 
-def main(original: str, held_out: str, out: str = "assets/eval-chart.png") -> None:
+def main(original: str, held_out: str, parser_original: str = "", parser_held_out: str = "",
+         out: str = "assets/eval-chart.png") -> None:
     runs = [json.loads(Path(p).read_text()) for p in (original, held_out)]
+    for run, parser_file in zip(runs, (parser_original, parser_held_out)):
+        if parser_file:
+            parser = json.loads(Path(parser_file).read_text())
+            assert parser["jobs_file"] == run["jobs_file"], "parser-only file is for a different job set"
+            run["score"]["parser"] = parser["score"]["parser"]
     for run in runs:
         assert run.get("valid", True), f"{run['jobs_file']}: invalid run (model calls failed)"
     fig, ax = plt.subplots(figsize=(8.6, 4.4), dpi=200)
