@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://hermes-agent.nousresearch.com"><img alt="Hermes Agent plugin" src="https://img.shields.io/badge/Hermes%20Agent-plugin-2a78d6"></a>
   <img alt="Requires Hermes 0.22.7+" src="https://img.shields.io/badge/hermes-%E2%89%A50.22.7-1baf7a">
-  <img alt="102 tests passing" src="https://img.shields.io/badge/tests-102%20passing-1baf7a">
+  <img alt="133 tests passing" src="https://img.shields.io/badge/tests-133%20passing-1baf7a">
   <img alt="Surfaces" src="https://img.shields.io/badge/works%20in-Telegram%20%C2%B7%20Slack%20%C2%B7%20Discord%20%C2%B7%20Desktop%20%C2%B7%20CLI-6250d6">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-8a897f"></a>
 </p>
@@ -25,6 +25,7 @@
 - [Try it in two minutes](#-try-it-in-two-minutes-no-accounts)
 - [How it works](#-how-it-works)
 - [Why a plugin and not a prompt](#-why-a-plugin-and-not-a-prompt)
+- [Quote from a voice note](#-quote-from-a-voice-note)
 - [A tour](#-a-tour)
 - [Your price book](#-your-price-book)
 - [Commands, tools and automations](#-commands-tools-and-automations)
@@ -91,21 +92,48 @@ flowchart LR
 
 A prompt can describe a price book. It can't guarantee the arithmetic. We measured it on **60 messy, real-world job descriptions**, with the **same local model** both ways:
 
-<p align="center"><img src="assets/eval-chart.png" alt="Exact quotes: bare model 8/40 and 4/20; Docket parser 22/40 and 13/20; Docket 37/40 and 19/20" width="92%"></p>
+<p align="center"><img src="assets/eval-chart.png" alt="Exact quotes: bare model 8/40 and 3/20; Docket parser 26/40 and 15/20; Docket 37/40 and 19/20" width="92%"></p>
 
 | | Original 40 jobs | Held-out 20 jobs (never tuned on) |
 |---|---:|---:|
-| Bare model, given the full price book and every pricing rule | 8 / 40 | 4 / 20 |
-| Docket's built-in parser, no model at all | 22 / 40 | 13 / 20 |
+| Bare model, given the full price book and every pricing rule | 8 / 40 | 3 / 20 |
+| Docket's built-in parser, no model at all | 26 / 40 | 15 / 20 |
 | **Docket (same model, words → codes, code prices)** | **37 / 40** | **19 / 20** |
 
 - **How a job is scored:** exact to the cent, or correctly flagged when the price book can't price the work.
-- **What the bare model got wrong:** totals off by hundreds of dollars, and a confident **$579** for a job at a ZIP code the price book doesn't cover.
-- **Docket's misses:** of its 4 across both sets, 3 were *safe* (an extra needs-price line that blocks sending until you look).
-- **Reproduce it:** `python evals/run_eval.py` (any OpenAI-compatible endpoint). The job sets with hand-written ground truth and every raw result file are in [`evals/`](evals).
+- **What the bare model got wrong:** totals off by hundreds of dollars, and a confident **$1,815.74** for a water heater at a ZIP code the price book doesn't cover.
+- **Docket's misses:** all 4 across both sets were *safe*: the total was right, but Docket added a needs-price line that blocks sending until you look.
+- **Reproduce it:** `python evals/run_eval.py` (any OpenAI-compatible endpoint), then `python evals/make_chart.py` redraws this chart from the result files. The job sets with hand-written ground truth and every raw result file are in [`evals/`](evals).
 
 > [!NOTE]
 > Model: Qwen 3.5 9B running locally in Ollama, thinking off. Bigger cloud models do better on their own, but the point stands: arithmetic belongs in code.
+
+---
+
+## 🎙️ Quote from a voice note
+
+Standing in a basement with wet hands? Hold the mic in Telegram and say the job:
+
+> *"Dana Henderson, fourteen Maple Street, six two seven oh seven. Swap the fifty gallon gas water heater, permit, and haul away the old one."*
+
+Hermes echoes what it heard, and the priced quote card follows: **$1,972.36**, the same as typing it. Docket adds three things to Hermes's built-in transcription:
+
+- **It teaches the recognizer your trade.** A `pre_transcription` hook hands Whisper your own price book's words (*PEX, P-trap, angle stop, expansion tank* and the names you use for jobs), so they come out spelled the way the price book spells them. It updates itself when you change your prices.
+- **It reads numbers the way people say them.** *"six two seven oh seven"*, a transcript's *"627-07"* and *"an hour and a half"* become `62707` and `1.5 hours` before anything is priced.
+- **It catches misheard names.** If Whisper hears *"Denahenderson"* at a ZIP where you already have a *Dana Henderson*, the quote goes to Dana (with a note saying so). It never matches across ZIPs.
+
+Docket still prices only what the transcript names. A word Whisper drops is a line missing from the card you check before sending, never a guessed one.
+
+**Measured.** Every job spoken aloud by three macOS voices, transcribed with Hermes's own local Whisper settings, then quoted. The voice set is 20 jobs written the way people talk and [committed before any voice results existed](evals/jobs_voice20.yaml), never tuned on:
+
+| Voice held-out set (20 jobs) | Whisper `base` (Hermes default) | Whisper `small.en` |
+|---|---:|---:|
+| Plain transcription | 15 / 20 | 16 / 20 |
+| **With Docket's vocabulary hint** | **17 / 20** | **18 / 20** |
+
+Of the 3 misses with Whisper `base`, two were safe (a dropped ZIP or a misheard word made Docket flag the quote instead of guessing); one lost a spoken *"extra hour and a half of labor"*, a line missing from the card you check before sending. Synthetic voices are cleaner than a real one in a noisy basement, so read these as the pipeline's ceiling. On a development set, the vocabulary hint alone lifted Docket from 12/20 to 16/20, and the spoken-number handling took it to 19/20. Reproduce: `python evals/run_voice_eval.py --jobs jobs_voice20.yaml --whisper base` (macOS, for `say`).
+
+**Setup:** voice notes need Hermes's local Whisper: `hermes pm install --extra stt-whisper`, then restart the gateway. For better accuracy, set `stt.local.model: small.en` in `config.yaml`.
 
 ---
 
@@ -138,6 +166,12 @@ Run `/docket setup` once in your chat with Hermes (`!docket setup` on Slack). Fr
 - **Quote cards** arrive with **✅ Send · ✏️ Edit · 🗑 Discard**. After sending, the card redraws with a **SENT** badge.
 - **Customer updates:** *"👀 Dana opened Q-1007"*, then *"✅ Dana accepted. Book it: [Sat Nov 7] [Mon Nov 9] [Pick a day]"*. Sundays are skipped.
 - **Only you can press Docket's buttons**, even in a group chat.
+
+### Settings, in Hermes's own Settings screen
+
+Business name, phone, email and license number, how long quotes stay valid, invoice due days, payment terms, the public link for customers and when to follow up all live in **Settings → Plugins → docket**. Nothing to edit by hand.
+
+<img src="assets/desktop-settings.png" alt="Docket's settings form in Hermes Settings: business details, quote validity, invoice terms, public link and follow-up days">
 
 ### Quotes and invoices your customers receive
 
@@ -247,12 +281,12 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 |---|---|---|
 | **CLI** | ✅ verified | Works out of the box |
 | **Hermes Desktop / Webapp** | ✅ verified | Capabilities → Plugins → switch **Docket** on, then restart the gateway once so the board's backend loads |
-| **Telegram** | ✅ verified live | `hermes gateway setup` → Telegram, then send `/docket setup` to your bot |
+| **Telegram** | ✅ verified live | `hermes gateway setup` → Telegram, then send `/docket setup` to your bot. Voice notes: `hermes pm install --extra stt-whisper` |
 | **Slack** | ✅ verified live | `hermes gateway setup` → Slack, then `!docket setup`. Use `!quote`, `!jobs`: Slack caps apps at 50 slash commands, and Hermes uses them all |
 | **Discord** | ✅ verified live | `hermes gateway setup` → Discord, add the bot to a server you're in (Discord only lets bots DM people they share a server with), then `/docket setup` |
 | **Other platforms** | ✅ | Slash commands and Hermes's own choice prompts |
 
-**Customer links.** The accept page runs on your machine (`127.0.0.1:8787`, or the next free port). To let real customers reach it, put it behind a tunnel you control and run `/docket link https://your-tunnel.example`.
+**Customer links.** The accept page runs on your machine (`127.0.0.1:8787`, or the next free port). To let real customers reach it, put it behind a tunnel you control and set **Public link for customers** in Settings → Plugins → docket (or run `/docket link https://your-tunnel.example`).
 
 **Model.** Docket registers its own model slot, **Docket job intake**, with thinking off. Point it at a fast, cheap model in Hermes's Models settings if you like. Small local models work; if the model fails, Docket falls back to its built-in parser.
 
@@ -264,6 +298,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 |---|---|
 | **Stored data** | Customers, quotes, events and invoices in a local SQLite file under `plugin-data/docket/`. It survives updates and reinstalls. |
 | **Model calls** | Job descriptions go to the model you configured in Hermes, to map them to codes. Price lists it can't read plainly go to the same model. Prices never come from the model: an imported price must appear in your own words. |
+| **Voice notes** | Transcribed by Hermes's speech-to-text (local Whisper by default). Docket's `pre_transcription` hook adds your price book's item names and aliases to the transcription prompt; if you configured a cloud speech provider, that prompt goes to it with the audio. |
 | **Network** | A local HTTP server for the customer accept page (loopback by default). Messages go only to *your* registered chat, through *your* bots. No telemetry. |
 | **Email** | Docket does **not** send email. It writes the customer email and PDF to the outbox for you to send. |
 | **Approvals** | A `pre_tool_call` gate asks before the agent sends a quote or saves a price book change (listing the exact changes), and blocks both from scheduled runs. A `pre_llm_call` hook adds one line pointing the model at Docket's tools, only on messages about quoting or your price book. |
@@ -278,7 +313,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 git clone https://github.com/MKempler/docket && cd docket
 uv venv .venv && uv pip install --python .venv/bin/python ruamel.yaml pytest "reportlab>=4.2,<6" "Pillow>=12,<14" \
     pypdf fastapi httpx "python-telegram-bot==22.8" "discord.py==2.7.1" "slack-bolt==1.30.0"
-cd .. && docket/.venv/bin/python -m pytest -q docket/tests      # 102 tests
+cd .. && docket/.venv/bin/python -m pytest -q docket/tests      # 133 tests
 hermes plugins doctor docket --ci && hermes plugins validate docket --install-deps
 ```
 
