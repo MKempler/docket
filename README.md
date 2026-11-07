@@ -83,7 +83,7 @@ Then start a **new** Hermes session (new plugins' tools load in the next session
 
 ```mermaid
 flowchart LR
-    A["🗣️ You describe<br/>the job"] --> B["🤖 Model:<br/>words → codes"]
+    A["🗣️ Say or type<br/>the job"] --> B["🤖 Model:<br/>words → codes"]
     B --> C["🧮 Engine:<br/>exact prices"]
     C --> D["📱 You tap<br/>✅ Send"]
     D --> E["🔗 Customer<br/>accepts"]
