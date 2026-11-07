@@ -10,7 +10,7 @@
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-8a897f"></a>
 </p>
 
-<h3 align="center">Say the job. Docket prices it from <em>your</em> price book, you tap ✅, the customer accepts, the job is booked.</h3>
+<h3 align="center">Say the job. Docket prices it from <em>your</em> price book, you tap Send, the customer accepts, the job is booked.</h3>
 
 ---
 
@@ -23,33 +23,33 @@
 ## At a glance
 
 <table>
-<tr><td width="30%">🎙️ <b>Quote by voice or text</b></td><td>A Telegram voice note or a typed sentence becomes a priced quote card.</td></tr>
-<tr><td width="30%">🧮 <b>Exact, never guessed</b></td><td>Every line priced in code from your price book. Work it can't price is flagged, and a flagged quote can't be sent.</td></tr>
-<tr><td width="30%">📱 <b>One tap to send</b></td><td>✅ Send · ✏️ Edit · 🗑 Discard on Telegram, Slack, Discord and Hermes Desktop. A message ready to forward to the customer follows.</td></tr>
-<tr><td width="30%">🔗 <b>Customer accepts online</b></td><td>A clean page with every line and an <b>Accept quote</b> button. You get pinged and book the day with one tap.</td></tr>
-<tr><td width="30%">🧾 <b>Job done → invoice</b></td><td>Same engine, extra work included. Handed to Obol as a draft, or a PDF in your outbox.</td></tr>
-<tr><td width="30%">📒 <b>Prices in your own words</b></td><td><i>"labor 145/hr, sump pump $289 each"</i> or a pasted CSV. Preview first, save on confirm, undo any time.</td></tr>
-<tr><td width="30%">🖥️ <b>Built into Hermes</b></td><td>Jobs board and Price book pages, a status-bar chip, inline quote cards, a Settings page and three automations.</td></tr>
+<tr><td width="30%"><b>Quote by voice or text</b></td><td>A Telegram voice note or a typed sentence becomes a priced quote card.</td></tr>
+<tr><td width="30%"><b>Exact, never guessed</b></td><td>Every line priced in code from your price book. Work it can't price is flagged, and a flagged quote can't be sent.</td></tr>
+<tr><td width="30%"><b>One tap to send</b></td><td>Send, Edit and Discard buttons on Telegram, Slack, Discord and Hermes Desktop. A message ready to forward to the customer follows.</td></tr>
+<tr><td width="30%"><b>Customer accepts online</b></td><td>A clean page with every line and an <b>Accept quote</b> button. You get pinged and book the day with one tap.</td></tr>
+<tr><td width="30%"><b>Job done → invoice</b></td><td>Same engine, extra work included. Handed to Obol as a draft, or a PDF in your outbox.</td></tr>
+<tr><td width="30%"><b>Prices in your own words</b></td><td><i>"labor 145/hr, sump pump $289 each"</i> or a pasted CSV. Preview first, save on confirm, undo any time.</td></tr>
+<tr><td width="30%"><b>Built into Hermes</b></td><td>Jobs board and Price book pages, a status-bar chip, inline quote cards, a Settings page and three automations.</td></tr>
 </table>
 
-**Measured, not claimed:** with the same local model, Docket quotes **19 / 20** held-out jobs exactly; the model alone, given the whole price book, gets **3 / 20**. [See how →](#-why-a-plugin-and-not-a-prompt)
+**Measured, not claimed:** with the same local model, Docket quotes **19 / 20** held-out jobs exactly; the model alone, given the whole price book, gets **3 / 20**. [See how →](#why-a-plugin-and-not-a-prompt)
 
 ## Contents
 
-- [Try it in two minutes](#-try-it-in-two-minutes-no-accounts)
-- [How it works](#-how-it-works)
-- [Why a plugin and not a prompt](#-why-a-plugin-and-not-a-prompt)
-- [Quote from a voice note](#-quote-from-a-voice-note)
-- [A tour](#-a-tour)
-- [Your price book](#-your-price-book)
-- [Commands, tools and automations](#-commands-tools-and-automations)
-- [Setup by surface](#-setup-by-surface)
-- [Safety and disclosures](#-safety-and-disclosures)
-- [Development](#-development)
+- [Try it in two minutes](#try-it-in-two-minutes-no-accounts)
+- [How it works](#how-it-works)
+- [Why a plugin and not a prompt](#why-a-plugin-and-not-a-prompt)
+- [Quote from a voice note](#quote-from-a-voice-note)
+- [A tour](#a-tour)
+- [Your price book](#your-price-book)
+- [Commands, tools and automations](#commands-tools-and-automations)
+- [Setup by surface](#setup-by-surface)
+- [Safety and disclosures](#safety-and-disclosures)
+- [Development](#development)
 
 ---
 
-## ⚡ Try it in two minutes (no accounts)
+## Try it in two minutes (no accounts)
 
 Docket ships a fictional demo company, **Copperline Plumbing & Drain**, so you can try the whole loop with no signups, keys or messaging apps. Everything runs on your machine.
 
@@ -79,16 +79,16 @@ Then start a **new** Hermes session (new plugins' tools load in the next session
 
 ---
 
-## 🧭 How it works
+## How it works
 
 ```mermaid
 flowchart LR
-    A["🗣️ Say or type<br/>the job"] --> B["🤖 Model:<br/>words → codes"]
-    B --> C["🧮 Engine:<br/>exact prices"]
-    C --> D["📱 You tap<br/>✅ Send"]
-    D --> E["🔗 Customer<br/>accepts"]
-    E --> F["📅 One tap<br/>to book"]
-    F --> G["🧾 Invoice"]
+    A["Say or type<br/>the job"] --> B["Model:<br/>words → codes"]
+    B --> C["Engine:<br/>exact prices"]
+    C --> D["You tap<br/>Send"]
+    D --> E["Customer<br/>accepts"]
+    E --> F["One tap<br/>to book"]
+    F --> G["Invoice"]
     style C fill:#2a78d6,color:#fff,stroke:#2a78d6
     style D fill:#1baf7a,color:#fff,stroke:#1baf7a
 ```
@@ -103,7 +103,7 @@ flowchart LR
 
 ---
 
-## 📊 Why a plugin and not a prompt
+## Why a plugin and not a prompt
 
 A prompt can describe a price book. It can't guarantee the arithmetic. We measured it on **60 messy, real-world job descriptions**, with the **same local model** both ways:
 
@@ -130,7 +130,7 @@ The bare model was off by hundreds of dollars, and quoted a confident **$1,815.7
 
 ---
 
-## 🎙️ Quote from a voice note
+## Quote from a voice note
 
 Standing in a basement with wet hands? Hold the mic in Telegram and say the job:
 
@@ -163,7 +163,7 @@ Of the 3 misses with Whisper `base`, two were safe (a dropped ZIP or a misheard 
 
 ---
 
-## 🖥️ A tour
+## A tour
 
 ### Hermes Desktop: the Jobs board
 
@@ -219,7 +219,7 @@ Business name, phone, email and license number, how long quotes stay valid, invo
 
 ---
 
-## 📒 Your price book
+## Your price book
 
 Everything Docket quotes comes from one YAML file you own. You never have to open it.
 
@@ -279,7 +279,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 
 ---
 
-## 🧰 Commands, tools and automations
+## Commands, tools and automations
 
 **Automations** (in `/blueprint`, the Desktop Cron page and the dashboard):
 
@@ -313,16 +313,16 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 
 ---
 
-## 🔌 Setup by surface
+## Setup by surface
 
 | Surface | Status | How |
 |---|---|---|
-| **CLI** | ✅ verified | Works out of the box |
-| **Hermes Desktop / Webapp** | ✅ verified | Capabilities → Plugins → switch **Docket** on, then restart the gateway once so the board's backend loads |
-| **Telegram** | ✅ verified live | `hermes gateway setup` → Telegram, then send `/docket setup` to your bot. Voice notes: `hermes pm install --extra stt-whisper` |
-| **Slack** | ✅ verified live | `hermes gateway setup` → Slack, then `!docket setup`. Use `!quote`, `!jobs`: Slack caps apps at 50 slash commands, and Hermes uses them all |
-| **Discord** | ✅ verified live | `hermes gateway setup` → Discord, add the bot to a server you're in (Discord only lets bots DM people they share a server with), then `/docket setup` |
-| **Other platforms** | ✅ | Slash commands and Hermes's own choice prompts |
+| **CLI** | Verified | Works out of the box |
+| **Hermes Desktop / Webapp** | Verified | Capabilities → Plugins → switch **Docket** on, then restart the gateway once so the board's backend loads |
+| **Telegram** | Verified live | `hermes gateway setup` → Telegram, then send `/docket setup` to your bot. Voice notes: `hermes pm install --extra stt-whisper` |
+| **Slack** | Verified live | `hermes gateway setup` → Slack, then `!docket setup`. Use `!quote`, `!jobs`: Slack caps apps at 50 slash commands, and Hermes uses them all |
+| **Discord** | Verified live | `hermes gateway setup` → Discord, add the bot to a server you're in (Discord only lets bots DM people they share a server with), then `/docket setup` |
+| **Other platforms** | Supported | Slash commands and Hermes's own choice prompts |
 
 **Customer links.** The accept page runs on your machine (`127.0.0.1:8787`, or the next free port). To let real customers reach it, put it behind a tunnel you control and set **Public link for customers** in Settings → Plugins → docket (or run `/docket link https://your-tunnel.example`).
 
@@ -330,7 +330,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 
 ---
 
-## 🔒 Safety and disclosures
+## Safety and disclosures
 
 | | |
 |---|---|
@@ -345,7 +345,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 
 ---
 
-## 🛠️ Development
+## Development
 
 ```bash
 git clone https://github.com/MKempler/docket && cd docket
