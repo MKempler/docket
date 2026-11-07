@@ -10,15 +10,29 @@
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-8a897f"></a>
 </p>
 
-<h3 align="center">Describe the job. Docket prices it from <em>your</em> price book, you tap ✅, the customer accepts, the job is booked.</h3>
+<h3 align="center">Say the job. Docket prices it from <em>your</em> price book, you tap ✅, the customer accepts, the job is booked.</h3>
 
 ---
 
-**Docket** is a [Hermes Agent](https://hermes-agent.nousresearch.com) plugin for plumbers, electricians, handymen and anyone who quotes jobs from a price list. You describe the job the way you'd say it in the van. Docket turns the words into price-book items, **prices every line in code** (the model never produces a number), and sends you a quote card with buttons. Your customer gets a link to accept; you get pinged and book the day with one tap. When the job is done, Docket writes the invoice.
+**Docket** is a [Hermes Agent](https://hermes-agent.nousresearch.com) plugin for plumbers, electricians, handymen and anyone who quotes jobs from a price list. Describe the job the way you'd say it in the van, typed or as a voice note. The model only turns your words into price-book items; **code prices every line**, so the number on the quote is always the one your price book says.
 
 <p align="center">
   <img src="assets/phones.png" alt="Owner on Telegram: quote card with Send, Edit, Discard, then customer opened and accepted with booking buttons. Customer: the accept page with an Accept quote button." width="100%">
 </p>
+
+## At a glance
+
+| | |
+|---|---|
+| 🎙️ **Quote by voice or text** | A Telegram voice note or a typed sentence becomes a priced quote card. |
+| 🧮 **Exact, never guessed** | Every line priced in code from your price book. Work it can't price is flagged, and a flagged quote can't be sent. |
+| 📱 **One tap to send** | ✅ Send · ✏️ Edit · 🗑 Discard on Telegram, Slack, Discord and Hermes Desktop. A message ready to forward to the customer follows. |
+| 🔗 **Customer accepts online** | A clean page with every line and an **Accept quote** button. You get pinged and book the day with one tap. |
+| 🧾 **Job done → invoice** | Same engine, extra work included. Handed to Obol as a draft, or a PDF in your outbox. |
+| 📒 **Prices in your own words** | *"labor 145/hr, sump pump $289 each"* or a pasted CSV. Preview first, save on confirm, undo any time. |
+| 🖥️ **Built into Hermes** | Jobs board and Price book pages, a status-bar chip, inline quote cards, a Settings page and three automations. |
+
+**Measured, not claimed:** with the same local model, Docket quotes **19 / 20** held-out jobs exactly; the model alone, given the whole price book, gets **3 / 20**. [See how →](#-why-a-plugin-and-not-a-prompt)
 
 ## Contents
 
@@ -100,13 +114,18 @@ A prompt can describe a price book. It can't guarantee the arithmetic. We measur
 | Docket's built-in parser, no model at all | 27 / 40 | 16 / 20 |
 | **Docket (same model, words → codes, code prices)** | **37 / 40** | **19 / 20** |
 
-- **How a job is scored:** exact to the cent, or correctly flagged when the price book can't price the work.
-- **What the bare model got wrong:** totals off by hundreds of dollars, and a confident **$1,815.74** for a water heater at a ZIP code the price book doesn't cover.
-- **Docket's misses:** all 4 across both sets were *safe*: the total was right, but Docket added a needs-price line that blocks sending until you look.
-- **Reproduce it:** `python evals/run_eval.py` (any OpenAI-compatible endpoint), then `python evals/make_chart.py` redraws this chart from the result files. (The parser row was re-scored with `--parser-only` after a fix to how it reads counts like *"reset 2 toilets"*; that file is in `evals/results/` too.) The job sets with hand-written ground truth and every raw result file are in [`evals/`](evals).
+The bare model was off by hundreds of dollars, and quoted a confident **$1,815.74** for a water heater at a ZIP code the price book doesn't cover. All 4 of Docket's misses were *safe*: the total was right, but Docket flagged a line for you to check before sending.
 
-> [!NOTE]
-> Model: Qwen 3.5 9B running locally in Ollama, thinking off. Bigger cloud models do better on their own, but the point stands: arithmetic belongs in code.
+<details>
+<summary><b>How it was measured, and how to reproduce it</b></summary>
+<br>
+
+- **Scoring:** a job counts only if the total is exact to the cent, or the answer correctly flags work the price book can't price.
+- **Model:** Qwen 3.5 9B running locally in Ollama, thinking off. Bigger cloud models do better on their own, but the point stands: arithmetic belongs in code.
+- **Held-out set:** 20 jobs written after the first run and never used for tuning.
+- **Reproduce:** `python evals/run_eval.py` (any OpenAI-compatible endpoint), then `python evals/make_chart.py` redraws the chart from the result files. The parser row was re-scored with `--parser-only` after a fix to how it reads counts like *"reset 2 toilets"*; that file is in `evals/results/` too. The job sets with hand-written ground truth and every raw result file are in [`evals/`](evals).
+
+</details>
 
 ---
 
@@ -131,7 +150,13 @@ Docket still prices only what the transcript names. A word Whisper drops is a li
 | Plain transcription | 15 / 20 | 16 / 20 |
 | **With Docket's vocabulary hint** | **17 / 20** | **18 / 20** |
 
+<details>
+<summary><b>What the misses were, and how to reproduce it</b></summary>
+<br>
+
 Of the 3 misses with Whisper `base`, two were safe (a dropped ZIP or a misheard word made Docket flag the quote instead of guessing); one lost a spoken *"extra hour and a half of labor"*, a line missing from the card you check before sending. Synthetic voices are cleaner than a real one in a noisy basement, so read these as the pipeline's ceiling. On a development set, the vocabulary hint alone lifted Docket from 12/20 to 16/20, and the spoken-number handling took it to 19/20. Reproduce: `python evals/run_voice_eval.py --jobs jobs_voice20.yaml --whisper base` (macOS, for `say`).
+
+</details>
 
 **Setup:** voice notes need Hermes's local Whisper: `hermes pm install --extra stt-whisper`, then restart the gateway. For better accuracy, set `stt.local.model: small.en` in `config.yaml`.
 
@@ -213,9 +238,12 @@ Type a change, paste a whole price list, or load a CSV from your supplier or old
 - **No invented prices.** Every price must appear, digit for digit, in what you typed. A model reads only the chatty lines a plain reader can't (*"toilets are 350 flat and 3/4 pex is 2.20 a foot"*), and any number it returns that you didn't write is refused and reported.
 - **No guesses.** A line that could mean several items is left unchanged, listing the candidates, as in `water heater $1200` above.
 - **Your file stays yours.** Edits change only the affected lines; your comments and layout are kept. Every save is re-validated and backed up, so `/pricebook undo` puts it back.
-- **Same flow everywhere.** A preview card with ✅ Save / Cancel on Telegram, Slack and Discord; the **Price book** page in Desktop; or just tell the agent (*"raise my labor rate to $150"*). Agent saves go through Hermes's approval prompt, which lists Docket's own record of the changes, are blocked in scheduled runs, and previews expire after 30 minutes. Asking the agent depends on your model calling the tool; `/pricebook add` and the Desktop page don't. Starting from scratch: `/pricebook new Rivera Plumbing, labor 120/hr, tax 7%`.
+- **Same flow everywhere.** A preview card with ✅ Save / Cancel on Telegram, Slack and Discord; the **Price book** page in Desktop; or tell the agent (*"raise my labor rate to $150"*), whose save goes through Hermes's approval prompt listing the exact changes.
+- **Starting your own:** `/pricebook new Rivera Plumbing, labor 120/hr, tax 7%`, then add items.
 
-### What's in it
+<details>
+<summary><b>What's in the file</b> (travel zones, multipliers, discounts, jobs built from labor + parts)</summary>
+<br>
 
 If you edit the file by hand, run `/pricebook validate` afterwards; mistakes are reported with the line number.
 
@@ -246,9 +274,23 @@ fees:
 
 Also supported: travel zones by ZIP, member discounts (labor only), materials sold on their own, and fittings rounded up to whole units. See the full demo book in [`demo_data/pricebook.yaml`](demo_data/pricebook.yaml).
 
+</details>
+
 ---
 
 ## 🧰 Commands, tools and automations
+
+**Automations** (in `/blueprint`, the Desktop Cron page and the dashboard):
+
+| Blueprint | When | What you get |
+|---|---|---|
+| `docket:quote-followups` | weekday mornings | Quotes unanswered for N+ days, each with a ready-to-send nudge. **Never sends.** |
+| `docket:run-sheet` | evenings | Tomorrow's jobs, addresses and the materials to load on the truck |
+| `docket:weekly-pipeline` | Mondays | Open quote value, jobs won this week, win rate |
+
+<details>
+<summary><b>Every slash command and agent tool</b></summary>
+<br>
 
 <table>
 <tr><th>Slash command</th><th>What it does</th></tr>
@@ -264,15 +306,9 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 
 **Agent tools:** `docket_quote`, `docket_send_quote` *(asks you first; blocked under cron)*, `docket_pricebook_edit` *(preview only)*, `docket_pricebook_save` *(asks you first; blocked under cron)*, `docket_price_preview`, `docket_jobs`, `docket_close_job`, `docket_followups`, `docket_run_sheet`, `docket_pipeline`.
 
-**Automations** (in `/blueprint`, the Desktop Cron page and the dashboard):
-
-| Blueprint | When | What you get |
-|---|---|---|
-| `docket:quote-followups` | weekday mornings | Quotes unanswered for N+ days, each with a ready-to-send nudge. **Never sends.** |
-| `docket:run-sheet` | evenings | Tomorrow's jobs, addresses and the materials to load on the truck |
-| `docket:weekly-pipeline` | Mondays | Open quote value, jobs won this week, win rate |
-
 **CLI:** `hermes docket demo [--reset]` and `hermes docket serve`.
+
+</details>
 
 ---
 
@@ -313,7 +349,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 ```bash
 git clone https://github.com/MKempler/docket && cd docket
 uv venv .venv && uv pip install --python .venv/bin/python -r requirements-dev.txt
-.venv/bin/python -m pytest -q                                     # 147 tests; CI runs them on Python 3.11–3.14
+.venv/bin/python -m pytest -q                                     # 150 tests; CI runs them on Python 3.11–3.14
 hermes plugins doctor docket --ci && hermes plugins validate docket --install-deps
 ```
 
