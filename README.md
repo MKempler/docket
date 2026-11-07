@@ -40,8 +40,8 @@
 Docket ships a fictional demo company, **Copperline Plumbing & Drain**, so you can try the whole loop with no signups, keys or messaging apps. Everything runs on your machine.
 
 ```bash
-hermes plugins install MKempler/docket --enable
-hermes docket demo            # six customers, quotes in every state
+hermes plugins install MKempler/docket --enable    # answer "y" to install its two libraries (reportlab, Pillow)
+hermes docket demo                                 # six customers, quotes in every state
 ```
 
 Then start a **new** Hermes session (new plugins' tools load in the next session) and run:

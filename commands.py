@@ -124,7 +124,7 @@ def _send_text(result: dict, book=None, rec=None) -> str:
     if result.get("already_sent"):
         head = f"{result['number']} v{result['version']} was already sent ({result['status']})."
     else:
-        head = f"✅ Sent {result['number']} v{result['version']}. Email and PDF saved to {result['outbox']}"
+        head = f"✅ Sent {result['number']} v{result['version']}. Email and PDF saved to `{result['outbox']}`"
     if book is None or rec is None:
         return f"{head}\nCustomer link: {url}"
     out = (f"{head}\n\nMessage for {rec.customer['name']} (copy it into a text, WhatsApp or email):\n\n"
@@ -196,6 +196,17 @@ def _save_public_link(value: str) -> None:
     runtime.store().set_meta("public_base_url", "")
 
 
+CLI_HELP = """Docket: quotes for trades businesses
+  hermes docket demo [--reset]    load the demo company (Copperline Plumbing & Drain); --reset wipes existing quotes
+  hermes docket serve             run the customer accept page in the foreground
+
+In a Hermes chat (start a new session after installing):
+  /quote <customer, address or ZIP, the job>   price a job from your price book
+  /jobs                                        your quotes and jobs by status
+  /pricebook                                   show your price book; /pricebook add <prices> changes it
+  /docket setup                                in Telegram, Discord or Slack: cards and customer pings come there"""
+
+
 def cli_setup(subparser) -> None:
     subs = subparser.add_subparsers(dest="docket_command")
     demo_p = subs.add_parser("demo", help="Load the demo company with quotes in every state")
@@ -215,7 +226,7 @@ def cli_main(args) -> None:
         from .accept_server import serve_forever
         serve_forever(runtime.accept_app(), host=args.host, port=args.port)
         return
-    print(DOCKET_HELP.replace("/docket", "hermes docket"))
+    print(CLI_HELP)
 
 
 def run_demo(*, force: bool = False) -> str:
@@ -250,7 +261,7 @@ def _invoice_text(inv: dict) -> str:
     if inv.get("already"):
         return f"{inv['quote_number']} already has invoice {inv['number']} ({fmt_money(Decimal(inv['total']))}, {inv['status']})."
     where = ("handed to your invoicing plugin (Obol) as a draft" if inv["handoff"] == "obol"
-             else f"saved to {inv['pdf']}" if inv.get("pdf") else "saved")
+             else f"saved to `{inv['pdf']}`" if inv.get("pdf") else "saved")
     out = f"🧾 {inv['number']} for {inv['quote_number']} {inv['customer']['name']}: {fmt_money(Decimal(inv['total']))}, due {inv['due']}. Invoice {where}."
     return out + (f"\n{inv['note']}" if inv.get("note") else "")
 
@@ -311,7 +322,7 @@ def _pricebook(ctx: Any, text: str, surface: str) -> str:
         from pathlib import Path
         path = Path(rest.strip("'\"")).expanduser()
         if not path.is_file():
-            return f"Docket: no file at {path}. Paste the list instead: /pricebook add <your prices>"
+            return f"Docket: no file at `{path}`. Paste the list instead: /pricebook add <your prices>"
         if path.stat().st_size > 512_000:
             return "Docket: that file is over 500 KB. Split it, or paste the part with your prices."
         plan = runtime.pricebook_propose(path.read_text(encoding="utf-8", errors="replace"), llm=runtime.llm(ctx))
@@ -355,10 +366,10 @@ def pricebook_text(*, validate: bool = False) -> str:
     book, errors, path, is_demo = runtime.book()
     label = " (demo price book: /pricebook new starts your own)" if is_demo else ""
     if errors:
-        return f"Price book {path} has {len(errors)} error(s):\n" + "\n".join(f"  • {e}" for e in errors[:25])
+        return f"Price book `{path}` has {len(errors)} error(s):\n" + "\n".join(f"  • {e}" for e in errors[:25])
     if validate:
         return (f"Price book OK{label}: {len(book.assemblies)} jobs, {len(book.fees)} flat-rate items, "
-                f"{len(book.materials)} materials.\n{path}")
+                f"{len(book.materials)} materials.\n`{path}`")
     cur = book.currency
     head = (f"{book.business.get('name', 'Price book')}{label}\n{cur} · labor {fmt_money(book.labor_rate, cur)}/h "
             f"(min {fmt_qty(book.labor_minimum_hours)} h) · {book.tax_name} {fmt_qty(book.tax_rate * 100)}% on "
@@ -375,5 +386,5 @@ def pricebook_text(*, validate: bool = False) -> str:
     if book.materials:
         lines.append("Materials:")
         lines += [f"  {m.code:<18} {m.name}  {fmt_money(m.price, cur)}/{m.unit}" for m in book.materials.values()]
-    lines.append(f"File: {path}\nChange it: /pricebook add <prices>  (e.g. labor 145/hr, 3/4\" PEX $2.20/ft)")
+    lines.append(f"File: `{path}`\nChange it: /pricebook add <prices>  (e.g. labor 145/hr, 3/4\" PEX $2.20/ft)")
     return "\n".join(lines)

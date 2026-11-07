@@ -48,7 +48,7 @@ def book() -> tuple[PriceBook | None, list, Path, bool]:
 def require_book() -> PriceBook:
     b, errors, path, _ = book()
     if errors or b is None:
-        raise RuntimeError(f"Price book {path} has {len(errors)} error(s). Run /pricebook validate.")
+        raise RuntimeError(f"Price book `{path}` has {len(errors)} error(s). Run /pricebook validate.")
     return b
 
 

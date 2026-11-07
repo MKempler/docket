@@ -633,7 +633,7 @@ def plan(current_text: str, book: PriceBook, reading: Reading, *, removals: tupl
     for check in checks:
         if not check(new_book):
             raise EditError("Docket couldn't apply those changes safely. Edit the file by hand: "
-                            f"{book.source or 'pricebook.yaml'}")
+                            f"`{book.source or 'pricebook.yaml'}`")
     counts = (f"Checked: the new price book is valid ({len(new_book.assemblies)} jobs, {len(new_book.fees)} flat-rate "
               f"items, {len(new_book.materials)} materials).")
     return Plan(changes, new_text, text_hash(current_text), skipped, counts if changes else "")
