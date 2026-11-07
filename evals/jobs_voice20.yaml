@@ -1,0 +1,96 @@
+# Voice held-out set: 20 jobs written the way an owner talks into a phone (numbers as words, ZIPs digit by
+# digit, filler), written BEFORE looking at any voice-eval results and never used to tune Docket. It is the
+# only set the published voice number comes from. Same ground-truth rules as jobs40.yaml.
+
+jobs:
+  - id: 201
+    text: "Okay, quote for Rachel Moore, she's at forty two Linden Avenue, six two seven oh three. Fifty gallon gas water heater swap, pull the permit, and we're hauling the old one."
+    zip: "62703"
+    items: {WH50-REPLACE: 1, PERMIT-WH: 1, HAULAWAY: 1}
+  - id: 202
+    text: "Uh, Victor Lane, zip is six two seven one one. Toilet's rocking, needs a pull and reset."
+    zip: "62711"
+    items: {TOILET-RESET: 1}
+  - id: 203
+    text: "Got an emergency. Dorothy Fisk, six two six six one, the angle stop under the kitchen sink is leaking, replace it."
+    zip: "62661"
+    items: {SHUTOFF-REPLACE: 1}
+    flags: [emergency]
+  - id: 204
+    text: "Marcus Webb, six two seven oh two, two new toilets, one upstairs one down, and haul both old ones away."
+    zip: "62702"
+    items: {TOILET-REPLACE: 2, HAULAWAY: 2}
+  - id: 205
+    text: "So for Ellen Price at six two seven oh seven, sixty feet of half inch PEX repipe. She's a member."
+    zip: "62707"
+    items: {REPIPE-PEX12: 60}
+    tier: member
+  - id: 206
+    text: "Kitchen faucet install for Andre Silva, six two six seven oh, and he wants it done Saturday."
+    zip: "62670"
+    items: {FAUCET-KITCHEN: 1}
+    flags: [weekend]
+  - id: 207
+    text: "Hannah Cole, six two seven one two, clogged kitchen drain, and run the camera down the line while we're there."
+    zip: "62712"
+    items: {DRAIN-CLEAR: 1, CAMERA: 1}
+  - id: 208
+    text: "Ben Torres, six two seven oh four. Garbage disposal install, plus a new P-trap kit."
+    zip: "62704"
+    items: {DISPOSAL-INSTALL: 1, PTRAP: 1}
+  - id: 209
+    text: "Grace Kim, six two seven oh one, three hours of labor tracing a slab leak."
+    zip: "62701"
+    items: {LABOR: 3}
+  - id: 210
+    text: "Tonight, after hours, for Leo Grant, six two six two nine. Slow drain in the tub, snake it out."
+    zip: "62629"
+    items: {DRAIN-CLEAR: 1}
+    flags: [after_hours]
+  - id: 211
+    text: "Nina Patel, six two seven oh three, she wants a tankless water heater put in."
+    zip: "62703"
+    items: {}
+    needs_price: true
+  - id: 212
+    text: "Quote Sam Ortiz at six two nine nine nine, replace the toilet."
+    zip: "62999"
+    items: {TOILET-REPLACE: 1}
+    needs_price: true
+  - id: 213
+    text: "Carla Diaz, six two seven one one, replace two shutoff valves and one braided supply line."
+    zip: "62711"
+    items: {SHUTOFF-REPLACE: 2, SUPPLY: 1}
+  - id: 214
+    text: "Owen Hart, six two seven oh two, just the expansion tank, parts only, he'll put it in himself."
+    zip: "62702"
+    items: {EXPTANK: 1}
+  - id: 215
+    text: "Iris Long, six two six six one. Replace the garbage disposal and the kitchen faucet. She's a club member, and it's an emergency."
+    zip: "62661"
+    items: {DISPOSAL-INSTALL: 1, FAUCET-KITCHEN: 1}
+    flags: [emergency]
+    tier: member
+  - id: 216
+    text: "Paul Nguyen, six two seven oh seven, water heater swap on Sunday. No permit needed, and he's keeping the old one."
+    zip: "62707"
+    items: {WH50-REPLACE: 1}
+    flags: [weekend]
+  - id: 217
+    text: "Rosa Klein, six two seven oh four, fix the dishwasher."
+    zip: "62704"
+    items: {}
+    needs_price: true
+  - id: 218
+    text: "Tyler Moss, six two seven one two, eighty feet of PEX repipe and an extra hour and a half of labor for drywall access."
+    zip: "62712"
+    items: {REPIPE-PEX12: 80, LABOR: 1.5}
+  - id: 219
+    text: "Mia Ford at six two seven oh one, sewer camera inspection only."
+    zip: "62701"
+    items: {CAMERA: 1}
+  - id: 220
+    text: "Dean Shaw, six two six seven oh, reset two toilets, both rocking, and it's after hours."
+    zip: "62670"
+    items: {TOILET-RESET: 2}
+    flags: [after_hours]
