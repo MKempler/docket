@@ -1,0 +1,10 @@
+# Test dependencies (the plugin itself needs only what pyproject.toml lists; Hermes provides the rest).
+reportlab>=4.2,<6
+Pillow>=12,<14
+ruamel.yaml>=0.18,<0.19
+pytest>=8,<10
+fastapi>=0.110,<1
+httpx>=0.27,<1
+pypdf>=5,<7
+python-telegram-bot>=21,<23
+discord.py>=2.4,<3

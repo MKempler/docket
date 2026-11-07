@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://hermes-agent.nousresearch.com"><img alt="Hermes Agent plugin" src="https://img.shields.io/badge/Hermes%20Agent-plugin-2a78d6"></a>
   <img alt="Requires Hermes 0.22.7+" src="https://img.shields.io/badge/hermes-%E2%89%A50.22.7-1baf7a">
-  <img alt="133 tests passing" src="https://img.shields.io/badge/tests-133%20passing-1baf7a">
+  <a href="https://github.com/MKempler/docket/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/MKempler/docket/actions/workflows/tests.yml/badge.svg"></a>
   <img alt="Surfaces" src="https://img.shields.io/badge/works%20in-Telegram%20%C2%B7%20Slack%20%C2%B7%20Discord%20%C2%B7%20Desktop%20%C2%B7%20CLI-6250d6">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-8a897f"></a>
 </p>
@@ -311,16 +311,18 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 
 ```bash
 git clone https://github.com/MKempler/docket && cd docket
-uv venv .venv && uv pip install --python .venv/bin/python ruamel.yaml pytest "reportlab>=4.2,<6" "Pillow>=12,<14" \
-    pypdf fastapi httpx "python-telegram-bot==22.8" "discord.py==2.7.1" "slack-bolt==1.30.0"
-cd .. && docket/.venv/bin/python -m pytest -q docket/tests      # 133 tests
+uv venv .venv && uv pip install --python .venv/bin/python -r requirements-dev.txt
+.venv/bin/python -m pytest -q                                     # 133 tests; CI runs them on Python 3.11–3.14
 hermes plugins doctor docket --ci && hermes plugins validate docket --install-deps
 ```
 
 | Area | Files |
 |---|---|
 | Pricing | `pricebook.py` (load, validate, line numbers) · `pricing.py` (exact engine) · `money.py` |
-| Words → codes | `intake.py` (model path with guards, plus the deterministic parser) · `hints.py` |
+| Evals | `evals/run_eval.py` (typed) · `evals/run_voice_eval.py` (spoken) · `evals/make_chart.py` · job sets and every raw result |
+| Words → codes | `intake.py` (model path with guards, plus the deterministic parser) · `spoken.py` (spoken numbers, split ZIPs) · `hints.py` |
+| Voice | `voice.py` (price-book vocabulary for Hermes's speech-to-text) |
+| Price-book edits | `pbedit.py` (read lists and CSVs, plan, patch in place, save, undo) · `settings.py` (Hermes Settings form) |
 | Ledger | `store.py` (versioned quotes, state machine, events) · `links.py` (signed, expiring links) |
 | Flow | `service.py` · `invoices.py` · `reports.py` · `demo.py` |
 | Surfaces | `commands.py` · `owner.py` + `channels.py` (Telegram / Slack / Discord) · `accept_server.py` · `dashboard/plugin_api.py` · `desktop/plugin.js` |
