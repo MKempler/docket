@@ -149,6 +149,11 @@ def price(book: PriceBook, spec: JobSpec) -> Quote:
             lines.append(QuoteLine("travel", f"ZONE-{zone.name}", f"Travel (zone {zone.name})", Decimal(1), "each",
                                    zone.amount, fees=zone.amount,
                                    rule=f"ZIP {spec.zip_code} is in zone {zone.name}: {fmt_money(zone.amount, cur)}"))
+    elif book.zones:
+        # Travel is priced by ZIP; without one, $0 would be a guess. Flag it so the quote can't go out without it.
+        needs.append("Travel (no ZIP given)")
+        lines.append(QuoteLine("needs_price", "TRAVEL", "Travel (no ZIP given)", Decimal(1), "each", Decimal(0),
+                               rule="No ZIP in the job: add it (e.g. 'zip 62707') so travel can be priced"))
 
     for item in spec.items:
         found = book.lookup(item.code)

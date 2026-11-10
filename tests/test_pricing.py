@@ -97,9 +97,15 @@ def test_unknown_items_become_needs_price_and_block_sending(book):
 
 
 def test_whole_units_reject_fractional_quantities(book):
-    q = price(book, spec_from_args({"items": [{"code": "TOILET-REPLACE", "qty": "1.5"}]}))
+    q = price(book, spec_from_args({"items": [{"code": "TOILET-REPLACE", "qty": "1.5"}], "zip": "62701"}))
     assert not q.complete
     assert "whole" in q.needs_price[0]
+
+
+def test_missing_zip_is_flagged_not_priced_at_zero(book):
+    q = price(book, spec_from_args({"items": [{"code": "WH50-REPLACE", "qty": 1}]}))
+    assert not q.complete and q.needs_price == ["Travel (no ZIP given)"]
+    assert next(l for l in q.lines if l.code == "TRAVEL").rule.startswith("No ZIP in the job")
 
 
 def test_unknown_flag_and_tier_warn_without_changing_price(book):
@@ -121,7 +127,7 @@ def test_every_assembly_ties_out_under_every_flag_combo(book):
     for code, asm in book.assemblies.items():
         qtys = [D(1), D(3)] if asm.unit == "each" else [D("1"), D("7.5"), D(38), D(120)]
         for qty, flags, tier in itertools.product(qtys, flag_sets, ("", "member")):
-            q = price(book, JobSpec([SpecItem(code, qty)], flags=flags, customer_tier=tier))
+            q = price(book, JobSpec([SpecItem(code, qty)], zip_code="62701", flags=flags, customer_tier=tier))
             assert q.complete, (code, qty, flags)
             assert_ties_out(q)
             assert q.total > 0

@@ -241,7 +241,8 @@ def render_card_png(book: PriceBook, rec: QuoteRecord, *, width: int = 1080) -> 
     blocks = []
     for _, line in rows:
         desc = line["description"] + (f"  × {_qty_label(line)}" if _qty_label(line) else "")
-        rule = line["rule"] if line["kind"] != "needs_price" else "Not in your price book. Add a price before sending."
+        rule = (line["rule"] if line["kind"] != "needs_price" or line.get("code") == "TRAVEL"
+                else "Not in your price book. Add a price before sending.")
         blocks.append((wrap(desc, f_body, inner - 230), wrap(rule, f_small, inner), line))
     height = pad + 60 + 50 + 30 + sum(len(d) * 40 + len(r) * 30 + 34 for d, r, _ in blocks) + 210 + pad
     img = Image.new("RGB", (width, height), BG)
