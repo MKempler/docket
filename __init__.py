@@ -210,9 +210,7 @@ def _make_quote_tool(ctx):
             if runtime.push_quote_card(rec, surface):
                 return json.dumps({"ok": True, "quote_id": rec.number, "version": rec.version, "status": rec.status,
                                    "card_sent": True, "complete": rec.complete, "notes": d.intake.notes,
-                                   "next": (f"The quote card for {rec.number} with Send/Edit/Discard buttons was just "
-                                            "sent to this chat. Tell the owner in one short line; do not repeat the "
-                                            "prices.")})
+                                   "next": _card_sent_line(rec)})
             return json.dumps({"ok": True, "quote_id": rec.number, "version": rec.version, "status": rec.status,
                                "complete": rec.complete, "total": rec.total, "text": owner_text(book, rec),
                                "notes": d.intake.notes, "questions": d.intake.questions,
@@ -417,10 +415,29 @@ def _docket_command(raw_args: str = "", **kwargs) -> str:
             f"  /pricebook     show your price book, or change it in your own words")
 
 
+def _card_sent_line(rec) -> str:
+    """What the agent says after the card lands: the card went to the OWNER, nothing has gone to the customer yet."""
+    name = (rec.customer or {}).get("name") or "the customer"
+    if rec.complete:
+        line = f"{rec.number} for {name} is ready to review. Tap ✅ Send when it looks right."
+    else:
+        line = f"{rec.number} for {name} has lines that need a price before it can be sent."
+    return (f"The quote card is in this chat, waiting for the owner; nothing has gone to the customer yet. "
+            f"Reply with exactly this line and nothing else: {line}")
+
+
+def _in_gateway() -> bool:
+    import sys
+    return "gateway" in sys.argv[1:3]
+
+
 def register(ctx):
     from . import runtime
     from .commands import cli_main, cli_setup, docket_admin, jobs, make_pricebook_command, make_quote_command
     runtime.CTX = ctx
+    if _in_gateway():                      # customer links sent before a restart must keep working
+        import threading
+        threading.Thread(target=runtime.ensure_accept_server, name="docket-accept-start", daemon=True).start()
 
     # Docket's own model slot: job intake only maps words to price-book codes, so thinking is switched off
     # (reasoning models otherwise spend minutes before answering) and the owner can pin a faster model for it.
