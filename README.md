@@ -12,6 +12,10 @@
 
 <h3 align="center">Say the job. Docket prices it from <em>your</em> price book, you tap Send, the customer accepts, the job is booked.</h3>
 
+
+https://github.com/user-attachments/assets/cc887d2c-c382-4345-8119-d88323cc7c8e
+
+
 ---
 
 **Docket** is a [Hermes Agent](https://hermes-agent.nousresearch.com) plugin for plumbers, electricians, handymen and anyone who quotes jobs from a price list. Describe the job the way you'd say it in the van, typed or as a voice note. The model only turns your words into price-book items; **code prices every line**, so the number on the quote is always the one your price book says.
