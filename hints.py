@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 
 QUOTE_RE = re.compile(r"\b(quote|quoting|estimate|price|pricing|how much|cost)\b", re.I)
-INVOICE_RE = re.compile(r"\bINV-?\d{3,6}\b|\b(?:obol|invoice)\b.*\bQ-?\d{3,6}\b|\bQ-?\d{3,6}\b.*\b(?:obol|invoice)\b", re.I)
+INVOICE_RE = re.compile(r"\bINV-?\d{3,6}\b|\bobol\b.*\bQ-?\d{3,6}\b|\bQ-?\d{3,6}\b.*\bobol\b", re.I)
 SEND_RE = re.compile(r"\b(send|resend|email)\b.*\bQ-?\d{3,6}\b|\bQ-?\d{3,6}\b.*\b(send|resend)\b", re.I)
 PRICEBOOK_RE = re.compile(r"\b(price ?book|price list|my (?:labor|labour|hourly|shop) rate|(?:raise|lower|change|update|"
                           r"set|bump) (?:my |the |our )?(?:labor|labour|hourly|rate|prices?|tax|service call)|"
@@ -24,7 +24,9 @@ def hint_for(message: str, *, mentions_work: bool = False) -> str | None:
         return None                     # slash commands never reach the model
     if INVOICE_RE.search(text):         # before SEND_RE: "send invoice INV-1001 (Q-1007) to Obol" is not a quote send
         return ('[Docket] For this invoice, call tool_call with calls=[{"name": "docket_close_job", '
-                '"arguments": {"quote_id": "<the INV- or Q-number>"}}]. Docket never contacts Obol itself; if the result has '
+                '"arguments": {"quote_id": "<the INV- or Q-number>"}}]. For a job that has no invoice yet this '
+                'finishes the job, so only do that if the owner says the work is done. Docket never contacts Obol '
+                'itself; if the result has '
                 'obol_payload and the owner wants the invoice in Obol, call obol_create_invoice with it exactly as '
                 'given. Obol asks the owner to approve.')
     if SEND_RE.search(text):

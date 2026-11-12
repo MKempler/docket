@@ -82,9 +82,13 @@ def route_target(name: str):
     folder = _named_profile_dir(name, process_data_dir().resolve())
     if not (folder / DB_FILENAME).exists():
         return None                                  # unknown profile, or one that never used Docket
+    from .settings import scoped
     st = _store_for(folder, partial(open_store_at, folder))
-    bk = _book_in(folder, st)
-    return Target(st, bk, partial(notify_owner, st=st, bk=bk), link_base(f"/p/{name}", st))
+    scope = partial(scoped, json.loads(st.get_meta(SNAPSHOT_KEY) or "{}"))
+    with scope():                                    # this profile's settings, not the default profile's
+        bk = _book_in(folder)
+        base = link_base(f"/p/{name}", st)
+    return Target(st, bk, partial(notify_owner, st=st, bk=bk), base, scope)
 
 
 def _broadcast_change(quote_id: int, status: str) -> None:
@@ -115,11 +119,13 @@ SNAPSHOT_KEY = "settings_snapshot"
 
 
 def _remember_settings() -> None:
-    """Keep this profile's business details and public link in its own store, so the accept page can show them
-    when a customer clicks with no profile active (Hermes settings follow the active profile)."""
+    """Keep this profile's settings in its own store, so the accept page can use them when a customer clicks
+    with no profile active (Hermes settings follow the active profile)."""
     try:
-        from .settings import BUSINESS_KEYS, setting
-        snap = json.dumps({k: setting(k) for k in [*BUSINESS_KEYS, "public_link"]}, sort_keys=True)
+        from .settings import in_scope, snapshot
+        if in_scope():
+            return                                   # reading another profile's remembered settings
+        snap = json.dumps(snapshot(), sort_keys=True)
         st = store()
         if st.get_meta(SNAPSHOT_KEY) != snap:
             st.set_meta(SNAPSHOT_KEY, snap)
@@ -127,18 +133,14 @@ def _remember_settings() -> None:
         logger.debug("Docket settings snapshot skipped", exc_info=True)
 
 
-def _book_in(folder: Path, st: Store) -> PriceBook:
-    """A named profile's price book with its remembered business details (see _remember_settings)."""
-    from .settings import BUSINESS_KEYS
+def _book_in(folder: Path) -> PriceBook:
+    """A named profile's price book with its business details; call inside that profile's settings scope."""
+    from .settings import apply_business
     path, _ = pricebook_path_in(folder)
     b, errors = load_pricebook(path)
     if errors or b is None:
         raise RuntimeError(f"Price book `{path}` has {len(errors)} error(s).")
-    saved = json.loads(st.get_meta(SNAPSHOT_KEY) or "{}")
-    for key, field in BUSINESS_KEYS.items():
-        if saved.get(key):
-            b.business[field] = saved[key]
-    return b
+    return apply_business(b)
 
 
 def require_book() -> PriceBook:
@@ -201,13 +203,10 @@ def public_link() -> str:
 
 def link_base(route: str | None = None, st: Store | None = None) -> str:
     """Base URL for links built without starting the accept page (reports, Desktop, the accept page's PDF).
-    route None = the active profile's; st given = a named profile's store, read with no profile active."""
+    route None = the active profile's; st = a named profile's store (read inside its settings scope)."""
     from .service import DEFAULT_BASE_URL
-    if st is not None:
-        saved = json.loads(st.get_meta(SNAPSHOT_KEY) or "{}")
-        base = saved.get("public_link") or st.get_meta("public_base_url") or ""
-    else:
-        base = public_link()
+    from .settings import setting
+    base = setting("public_link") or (st or store()).get_meta("public_base_url") or ""
     return (base or DEFAULT_BASE_URL).rstrip("/") + (profile_route() if route is None else route)
 
 

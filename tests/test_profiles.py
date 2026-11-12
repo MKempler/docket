@@ -16,17 +16,16 @@ from docket import service as svc  # noqa: E402
 from docket.store import DB_FILENAME, Store  # noqa: E402
 
 HOME: contextvars.ContextVar = contextvars.ContextVar("hermes_home")   # stands in for Hermes's profile override
-BUSINESS = {"root": "Copperline Plumbing", "b": "Brightside Electric"}
+SETTINGS = {"root": {"business_name": "Copperline Plumbing", "quote_valid_days": 30},
+            "b": {"business_name": "Brightside Electric", "quote_valid_days": 7}}
 
 
 class Ctx:
     """get_config follows the active profile, like Hermes's plugin settings."""
 
     def get_config(self, key, default=None):
-        if key != "business_name":
-            return default
         home = HOME.get(None)
-        return BUSINESS["b" if home is not None and home.name == "b" else "root"]
+        return SETTINGS["b" if home is not None and home.name == "b" else "root"].get(key, default)
 
 
 @pytest.fixture
@@ -98,3 +97,35 @@ def test_links_cannot_cross_profiles_or_escape(two_profiles, tmp_path):
     assert get(f"/p/nobody/q/{token_b}") == 404                                   # no such profile
     assert get(f"/p/../q/{token_b}") == 404 and get(f"/p/B/q/{token_b}") == 404   # not a profile id
     assert get(f"/p/b/q/{token_b}") == 200
+
+
+def test_named_profile_page_uses_its_own_settings(two_profiles, tmp_path):
+    """Every setting the page or PDF reads (valid-until days, link expiry, business details) is the quote's
+    profile's, even though the click arrives with no profile active."""
+    from docket.settings import setting
+    _, in_b = two_profiles
+    send("Dana Henderson, 14 Maple St 62707, water heater", tmp_path)
+    _, sent_b = in_b.run(send, "Ray Ortiz, 62701, clogged drain", tmp_path)
+    app = contextvars.Context().run(runtime.accept_app)
+
+    def as_customer():
+        target = runtime.route_target("b")
+        with target.scope():
+            inside = (setting("quote_valid_days"), setting("business_name"))
+        return inside, setting("quote_valid_days"), target.book.business["name"]
+
+    inside, outside, name = contextvars.Context().run(as_customer)
+    assert inside == (7, "Brightside Electric") and outside == 30 and name == "Brightside Electric"
+    seen = []
+
+    def fake_pdf(book, rec, url):                                      # what the real PDF renderer would read
+        seen.append((setting("quote_valid_days"), book.business["name"], url))
+        return b"%PDF-fake"
+
+    app.render_pdf = fake_pdf
+    path_b = sent_b["accept_url"].split("8787", 1)[1]
+    status, ctype, body = contextvars.Context().run(app.handle, "GET", path_b + "/pdf", {})
+    assert status == 200 and body == b"%PDF-fake"
+    assert seen[0][:2] == (7, "Brightside Electric") and "/p/b/q/" in seen[0][2]
+    st_b = in_b.run(runtime.store)
+    assert '"quote_valid_days": 7' in st_b.get_meta(runtime.SNAPSHOT_KEY)    # remembered while B was active

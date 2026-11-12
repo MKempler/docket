@@ -16,6 +16,7 @@ def test_quoting_messages_get_the_exact_call():
 
 def test_send_messages_point_at_the_gated_send_tool():
     assert '"docket_send_quote"' in hint_for("Send Q-1010 to the customer now.")
+    assert hint_for("Did Q-1007 get its invoice?") is None           # a question must not close the job
     for msg in ("send invoice INV-1001 (Q-1007) to Obol", "put the Q-1007 invoice in Obol", "Send INV-1002 to obol"):
         h = hint_for(msg)
         assert '"docket_close_job"' in h and "docket_send_quote" not in h and "obol_create_invoice" in h

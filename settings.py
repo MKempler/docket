@@ -6,6 +6,8 @@ Read through the plugin context Hermes gave register(); outside Hermes (tests, t
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 from typing import Any
 
 DEFAULTS: dict[str, Any] = {
@@ -17,15 +19,42 @@ BUSINESS_KEYS = {"business_name": "name", "business_phone": "phone", "business_e
                  "license": "license", "payment_terms": "payment_terms"}
 
 
+_SCOPED: contextvars.ContextVar[dict | None] = contextvars.ContextVar("docket_settings_scope", default=None)
+
+
+@contextlib.contextmanager
+def scoped(values: dict):
+    """Read settings from values (a profile's remembered settings) instead of Hermes. The accept page uses this
+    for a named profile's link, since a customer's click arrives with no Hermes profile active."""
+    token = _SCOPED.set(dict(values))
+    try:
+        yield
+    finally:
+        _SCOPED.reset(token)
+
+
+def in_scope() -> bool:
+    return _SCOPED.get() is not None
+
+
+def snapshot() -> dict:
+    """Every setting's current value, for the accept page to use later (see scoped)."""
+    return {key: setting(key) for key in DEFAULTS}
+
+
 def setting(key: str) -> Any:
     """The owner's value for key (clamped to sane limits), else the default."""
     default = DEFAULTS[key]
-    try:
-        from . import runtime
-        ctx = runtime.CTX
-        value = ctx.get_config(key, default) if ctx is not None else default
-    except Exception:
-        value = default
+    scoped_values = _SCOPED.get()
+    if scoped_values is not None:
+        value = scoped_values.get(key, default)
+    else:
+        try:
+            from . import runtime
+            ctx = runtime.CTX
+            value = ctx.get_config(key, default) if ctx is not None else default
+        except Exception:
+            value = default
     if isinstance(default, int):
         try:
             value = int(value)

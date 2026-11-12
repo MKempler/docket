@@ -13,6 +13,7 @@ README and disclosed in the catalog entry.
 
 from __future__ import annotations
 
+import contextlib
 import html
 import logging
 import threading
@@ -57,6 +58,7 @@ class Target(NamedTuple):
     book: Any
     notify: Callable[[str, Any], None] | None
     base: str | None
+    scope: Callable[[], Any] | None = None      # context manager: the profile's settings while handling the request
 
 
 def quote_page(book: Any, rec: Any, token: str, *, message: str = "", prefix: str = "") -> bytes:
@@ -121,7 +123,6 @@ class AcceptApp:
         return None if name else Target(self.get_store(), self.get_book(), self.notify, None)
 
     def handle(self, method: str, path: str, form: dict[str, str]) -> tuple[int, str, bytes]:
-        from .service import ServiceError, customer_action, accept_url
         if path == "/health":
             return 200, "text/plain", b"ok"
         parts = [p for p in path.split("/") if p]
@@ -138,7 +139,13 @@ class AcceptApp:
             return 503, "text/html", message_page("Quote unavailable", "Please try again in a minute.")
         if target is None:
             return 404, "text/html", message_page("Not found", "This page does not exist.")
-        store, book, prefix = target.store, target.book, (f"/p/{name}" if name else "")
+        with (target.scope() if target.scope else contextlib.nullcontext()):
+            return self._handle(method, target, token, action, form, prefix=(f"/p/{name}" if name else ""))
+
+    def _handle(self, method: str, target: Target, token: str, action: str, form: dict[str, str], *,
+                prefix: str) -> tuple[int, str, bytes]:
+        from .service import ServiceError, customer_action, accept_url
+        store, book = target.store, target.book
         try:
             if method == "GET" and action == "":
                 rec = customer_action(store, token, "view")
