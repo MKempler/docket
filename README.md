@@ -58,7 +58,7 @@ https://github.com/user-attachments/assets/cc887d2c-c382-4345-8119-d88323cc7c8e
 Docket ships a fictional demo company, **Copperline Plumbing & Drain**, so you can try the whole loop with no signups, keys or messaging apps. Everything runs on your machine.
 
 ```bash
-# answer "y" when Hermes offers to install Docket's two libraries (reportlab, Pillow)
+# answer "y" when Hermes offers to install Docket's Python libraries (reportlab, Pillow, ruamel.yaml)
 hermes plugins install MKempler/docket --enable
 hermes docket demo        # six customers, quotes in every state
 ```
@@ -219,7 +219,7 @@ Business name, phone, email and license number, how long quotes stay valid, invo
 
 - **[Obol](https://github.com/UEddy/Obol) installed** and the customer has an email → Docket also prepares the invoice as an Obol draft, but never sends it to Obol itself. Your agent creates it with Obol's own `obol_create_invoice` tool when you ask ("send invoice INV-1001 to Obol"), so Obol's own approval prompt, risk checks and block on scheduled runs apply.
 - Extra work that can't be priced **blocks the invoice** instead of silently disappearing.
-- Closing a job never runs from a scheduled job.
+- Scheduled runs can't close jobs, and a paid invoice is never offered to Obol.
 
 ---
 
@@ -309,7 +309,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 <tr><td><code>/docket setup | demo | serve | link &lt;url&gt;</code></td><td>Owner chat · demo data · accept page · public link for customers</td></tr>
 </table>
 
-**Agent tools:** `docket_quote`, `docket_send_quote` *(asks you first; blocked under cron)*, `docket_pricebook_edit` *(preview only)*, `docket_pricebook_save` *(asks you first; blocked under cron)*, `docket_price_preview`, `docket_jobs`, `docket_close_job`, `docket_followups`, `docket_run_sheet`, `docket_pipeline`.
+**Agent tools:** `docket_quote`, `docket_send_quote` *(asks you first; blocked under cron)*, `docket_pricebook_edit` *(preview only)*, `docket_pricebook_save` *(asks you first; blocked under cron)*, `docket_price_preview`, `docket_jobs`, `docket_close_job` *(blocked under cron; never calls Obol)*, `docket_followups`, `docket_run_sheet`, `docket_pipeline`.
 
 **CLI:** `hermes docket demo [--reset]` and `hermes docket serve`.
 
@@ -338,12 +338,12 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 
 | | |
 |---|---|
-| **Stored data** | Customers, quotes, events and invoices in a local SQLite file under `plugin-data/docket/`. It survives updates and reinstalls. |
+| **Stored data** | Customers, quotes, events and invoices in a local SQLite file in each Hermes profile's `plugin-data/docket/`. It survives updates and reinstalls. |
 | **Model calls** | Job descriptions go to the model you configured in Hermes, to map them to codes. Price lists it can't read plainly go to the same model. Prices never come from the model: an imported price must appear in your own words. |
 | **Voice notes** | Transcribed by Hermes's speech-to-text (local Whisper by default). Docket's `pre_transcription` hook adds your price book's item names and aliases to the transcription prompt; if you configured a cloud speech provider, that prompt goes to it with the audio. |
-| **Network** | A local HTTP server for the customer accept page (loopback by default). Messages go only to *your* registered chat, through *your* bots. No telemetry. |
+| **Network** | A local HTTP server for the customer accept page (loopback by default), in a background thread: the gateway starts it when a messaging platform connects, otherwise it starts the first time a customer link is made. Messages go only to *your* registered chat, through *your* bots. No telemetry. |
 | **Email** | Docket does **not** send email or texts. It writes the customer email and PDF to the outbox, and hands you a ready-to-forward message; you choose how it reaches the customer. It warns you when a customer link would only open on your own computer. |
-| **Approvals** | A `pre_tool_call` gate asks before the agent sends a quote or saves a price book change (listing the exact changes), and blocks both, and closing a job, from scheduled runs. A `pre_llm_call` hook adds one line pointing the model at Docket's tools, only on messages about quoting or your price book. |
+| **Approvals** | A `pre_tool_call` gate asks before the agent sends a quote or saves a price book change (listing the exact changes), and blocks both, and closing a job, from scheduled runs. A `pre_llm_call` hook adds one line pointing the model at Docket's tools, only on messages about quoting, sending a quote, your price book, your jobs or an invoice. |
 | **Payments** | None. Invoices are kept as PDFs. With Obol installed, Docket prepares an Obol draft that your agent creates through Obol's own tool, so Obol's approval applies; Docket never calls Obol itself. |
 | **Automations** | Blueprint jobs you schedule keep running after Docket is removed, until you delete them. |
 | **Profiles** | Each Hermes profile has its own Docket data: quotes, price book and customer links (`/p/<profile>/q/…` for a named profile on a gateway that serves several). Quote-card buttons on Telegram, Slack and Discord are wired once per gateway, not per profile, so on a gateway that serves several profiles, use the slash commands or Desktop for the named ones. |
@@ -355,7 +355,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 ```bash
 git clone https://github.com/MKempler/docket && cd docket
 uv venv .venv && uv pip install --python .venv/bin/python -r requirements-dev.txt
-.venv/bin/python -m pytest -q                                     # 150 tests; CI runs them on Python 3.11–3.14
+.venv/bin/python -m pytest -q                                     # 161 tests; CI runs them on Python 3.11–3.14
 hermes plugins doctor docket --ci && hermes plugins validate docket --install-deps
 ```
 

@@ -77,7 +77,7 @@ CLOSE_SCHEMA = {
                     "payment and never contacts Obol itself: when the owner's invoicing plugin (Obol) is installed "
                     "the result includes obol_payload, for obol_create_invoice if the owner wants it there. For a job "
                     "that is already invoiced it returns the same invoice (and obol_payload), so use it when the "
-                    "owner asks to send an existing invoice to Obol. Owner only; never from scheduled runs."),
+                    "owner asks to send an existing invoice to Obol. Blocked from scheduled runs."),
     "parameters": {"type": "object", "properties": {
         "quote_id": {"type": "string", "description": "e.g. Q-1004, or an invoice number like INV-1001 for an "
                                                        "already invoiced job"},

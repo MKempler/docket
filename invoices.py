@@ -141,9 +141,10 @@ def quote_id_for(store: Store, ref: str) -> int:
 
 
 def _obol_fields(invoice: dict, obol: bool) -> dict:
-    """{'obol_payload': ...} when this invoice can go to Obol (installed, customer email on file, not already
-    handed over by an older Docket), else {}."""
-    if not obol or not invoice["customer"].get("email") or invoice.get("handoff") == "obol":
+    """{'obol_payload': ...} when this invoice can go to Obol (installed, customer email on file, not paid yet,
+    not already handed over by an older Docket), else {}."""
+    if (not obol or not invoice["customer"].get("email") or invoice.get("status") == "paid"
+            or invoice.get("handoff") == "obol"):
         return {}
     return {"obol_payload": obol_payload(invoice)}
 

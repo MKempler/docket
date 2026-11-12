@@ -158,7 +158,7 @@ def outbox_root() -> Path:
 
 CTX: Any = None                    # the PluginContext (has_plugin, config, llm)
 INTAKE_TASK: str | None = None     # set by register() when the host supports plugin auxiliary tasks
-OWNER_NOTIFIERS: list = []         # callables(event, record) — Telegram adds one when the gateway connects
+OWNER_NOTIFIERS: list = []         # extra callables(event, record) run after the owner card; none by default
 
 
 def notify_owner(event: str, rec: Any, st: Store | None = None, bk: PriceBook | None = None) -> None:

@@ -83,6 +83,8 @@ def test_obol_draft_is_prepared_never_sent(store, tmp_path):
     assert round(sum(Decimal(str(i["amount"])) for i in p["line_items"]), 2) == Decimal(inv["total"])   # adds up exactly
     again = close_out(store, BOOK, qid, outbox_root=tmp_path, today=DAY, obol=True)   # "send INV-1001 to Obol" later
     assert again["already"] and again["number"] == inv["number"] and again["obol_payload"] == p
+    mark_paid(store, qid)                                                             # paid: never offered to Obol
+    assert "obol_payload" not in close_out(store, BOOK, qid, outbox_root=tmp_path, today=DAY, obol=True)
 
 
 def test_obol_needs_an_email_and_an_installed_plugin(store, tmp_path):
