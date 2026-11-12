@@ -1,26 +1,90 @@
-"""Process-wide handles inside Hermes: the store, the price book, data folders, the model."""
+"""Handles inside Hermes: the store, the price book, data folders, the model.
+
+One Hermes process can serve several profiles (a multiplexing gateway). Each profile has its own Docket data
+folder (Hermes's plugin_data_dir follows the active profile), so each gets its own store and price book here.
+The customer accept page is one local server for the process; a link names its profile (/p/<name>/q/<token>,
+or /q/<token> for the process's own profile) so a click with no profile active still reaches the right quotes.
+"""
 
 from __future__ import annotations
 
+import contextvars
+import json
+import logging
+import re
 import threading
+from functools import partial
 from pathlib import Path
 from typing import Any
 
 from .pricebook import PriceBook, load_pricebook
-from .store import Store, open_store
-from .store_paths import data_dir, pricebook_path
+from .store import DB_FILENAME, Store, open_store, open_store_at
+from .store_paths import data_dir, pricebook_path, pricebook_path_in
+
+logger = logging.getLogger(__name__)
+PROFILE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")      # Hermes profile ids (hermes_constants.PROFILE_ID_RE)
 
 _lock = threading.Lock()
-_store: Store | None = None
+_stores: dict[str, Store] = {}           # resolved data folder -> its store, one per profile
+_test_store: Store | None = None
 
 
 def store() -> Store:
-    global _store
+    """The active profile's store."""
+    if _test_store is not None:
+        return _test_store
+    return _store_for(data_dir(), open_store)
+
+
+def _store_for(folder: Path, opener: Any) -> Store:
+    key = str(Path(folder).resolve())
     with _lock:
-        if _store is None:
-            _store = open_store()
-            _store.listeners.append(_broadcast_change)
-        return _store
+        s = _stores.get(key)
+        if s is None:
+            s = opener()
+            s.listeners.append(_broadcast_change)
+            _stores[key] = s
+        return s
+
+
+def process_data_dir() -> Path:
+    """This process's own Docket data folder: data_dir() with no profile active (an empty context), the folder
+    of the profile the process was started as. Named profiles a gateway serves live in <root>/profiles/<name>."""
+    return contextvars.Context().run(data_dir)
+
+
+def _named_profile_dir(name: str, root: Path) -> Path:
+    return root.parent.parent / "profiles" / name / "plugin-data" / "docket"
+
+
+def profile_route() -> str:
+    """'' for the process's own profile, '/p/<name>' for a named profile it serves: the accept-link prefix."""
+    try:
+        here, root = data_dir().resolve(), process_data_dir().resolve()
+    except Exception:
+        return ""                                    # outside Hermes (tests, CLI tools): one store
+    if here == root:
+        return ""
+    name = here.parent.parent.name
+    if PROFILE_RE.fullmatch(name) and _named_profile_dir(name, root).resolve() == here:
+        return f"/p/{name}"
+    logger.warning("Docket: data folder %s is not a profile of this Hermes; customer links use the default", here)
+    return ""
+
+
+def route_target(name: str):
+    """The store, price book and owner notifier behind an accept link's profile name ('' = this process's own)."""
+    from .accept_server import Target
+    if not name:
+        return Target(store(), require_book(), notify_owner, link_base(""))
+    if not PROFILE_RE.fullmatch(name):
+        return None
+    folder = _named_profile_dir(name, process_data_dir().resolve())
+    if not (folder / DB_FILENAME).exists():
+        return None                                  # unknown profile, or one that never used Docket
+    st = _store_for(folder, partial(open_store_at, folder))
+    bk = _book_in(folder, st)
+    return Target(st, bk, partial(notify_owner, st=st, bk=bk), link_base(f"/p/{name}", st))
 
 
 def _broadcast_change(quote_id: int, status: str) -> None:
@@ -33,16 +97,48 @@ def _broadcast_change(quote_id: int, status: str) -> None:
 
 
 def reset_for_tests(s: Store | None = None) -> None:
-    global _store
+    global _test_store
     with _lock:
-        _store = s
+        _test_store = s
+        _stores.clear()
 
 
 def book() -> tuple[PriceBook | None, list, Path, bool]:
     from .settings import apply_business
     path, is_demo = pricebook_path()
     b, errors = load_pricebook(path)
+    _remember_settings()
     return apply_business(b), errors, path, is_demo
+
+
+SNAPSHOT_KEY = "settings_snapshot"
+
+
+def _remember_settings() -> None:
+    """Keep this profile's business details and public link in its own store, so the accept page can show them
+    when a customer clicks with no profile active (Hermes settings follow the active profile)."""
+    try:
+        from .settings import BUSINESS_KEYS, setting
+        snap = json.dumps({k: setting(k) for k in [*BUSINESS_KEYS, "public_link"]}, sort_keys=True)
+        st = store()
+        if st.get_meta(SNAPSHOT_KEY) != snap:
+            st.set_meta(SNAPSHOT_KEY, snap)
+    except Exception:
+        logger.debug("Docket settings snapshot skipped", exc_info=True)
+
+
+def _book_in(folder: Path, st: Store) -> PriceBook:
+    """A named profile's price book with its remembered business details (see _remember_settings)."""
+    from .settings import BUSINESS_KEYS
+    path, _ = pricebook_path_in(folder)
+    b, errors = load_pricebook(path)
+    if errors or b is None:
+        raise RuntimeError(f"Price book `{path}` has {len(errors)} error(s).")
+    saved = json.loads(st.get_meta(SNAPSHOT_KEY) or "{}")
+    for key, field in BUSINESS_KEYS.items():
+        if saved.get(key):
+            b.business[field] = saved[key]
+    return b
 
 
 def require_book() -> PriceBook:
@@ -63,21 +159,22 @@ INTAKE_TASK: str | None = None     # set by register() when the host supports pl
 OWNER_NOTIFIERS: list = []         # callables(event, record) — Telegram adds one when the gateway connects
 
 
-def notify_owner(event: str, rec: Any) -> None:
-    import logging
-    logging.getLogger(__name__).info("Docket: %s %s (%s)", rec.number, event, rec.customer.get("name"))
+def notify_owner(event: str, rec: Any, st: Store | None = None, bk: PriceBook | None = None) -> None:
+    """Tell the owner a customer opened / accepted / declined. st, bk: the quote's profile (accept page)."""
+    st = st or store()
+    logger.info("Docket: %s %s (%s)", rec.number, event, rec.customer.get("name"))
     try:
         from .owner import event_card, push
-        card = event_card(require_book(), store().get(rec.id), event, store=store())
+        card = event_card(bk or require_book(), st.get(rec.id), event, store=st)
         if card is not None:
-            push(store(), card)
+            push(st, card)
     except Exception:
-        logging.getLogger(__name__).exception("Docket owner card failed")
+        logger.exception("Docket owner card failed")
     for fn in list(OWNER_NOTIFIERS):
         try:
             fn(event, rec)
         except Exception:
-            logging.getLogger(__name__).exception("Docket owner notifier failed")
+            logger.exception("Docket owner notifier failed")
 
 
 def accept_app():
@@ -86,20 +183,32 @@ def accept_app():
         from .render import render_pdf
     except Exception:
         render_pdf = None
-    return AcceptApp(store, require_book, notify=notify_owner, render_pdf=render_pdf)
+    return AcceptApp(store, require_book, notify=notify_owner, render_pdf=render_pdf, resolve=route_target)
 
 
 def ensure_accept_server() -> str:
-    """Start the local accept page if needed; return the base URL customer links should use."""
+    """Start the local accept page if needed; return the base URL customer links should use (this profile's)."""
     from .accept_server import ensure_running
     local = ensure_running(accept_app())
-    return public_link() or local
+    return (public_link() or local).rstrip("/") + profile_route()
 
 
 def public_link() -> str:
     """The owner's public base URL for customer links ('' = this computer only)."""
     from .settings import setting
     return setting("public_link") or store().get_meta("public_base_url") or ""
+
+
+def link_base(route: str | None = None, st: Store | None = None) -> str:
+    """Base URL for links built without starting the accept page (reports, Desktop, the accept page's PDF).
+    route None = the active profile's; st given = a named profile's store, read with no profile active."""
+    from .service import DEFAULT_BASE_URL
+    if st is not None:
+        saved = json.loads(st.get_meta(SNAPSHOT_KEY) or "{}")
+        base = saved.get("public_link") or st.get_meta("public_base_url") or ""
+    else:
+        base = public_link()
+    return (base or DEFAULT_BASE_URL).rstrip("/") + (profile_route() if route is None else route)
 
 
 class _TaskLLM:

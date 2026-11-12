@@ -16,9 +16,12 @@ def data_dir() -> Path:
 def pricebook_path() -> tuple[Path, bool]:
     """(path, is_demo). The owner's price book once set up, otherwise the bundled demo book."""
     try:
-        own = data_dir() / "pricebook.yaml"
-        if own.exists():
-            return own, False
+        return pricebook_path_in(data_dir())
     except Exception:
-        pass
-    return DEMO_PRICEBOOK, True
+        return DEMO_PRICEBOOK, True
+
+
+def pricebook_path_in(folder: Path) -> tuple[Path, bool]:
+    """pricebook_path() for a given Docket data folder."""
+    own = Path(folder) / "pricebook.yaml"
+    return (own, False) if own.exists() else (DEMO_PRICEBOOK, True)

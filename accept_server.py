@@ -18,7 +18,7 @@ import logging
 import threading
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Callable
+from typing import Any, Callable, NamedTuple
 from urllib.parse import parse_qs
 
 from .money import fmt_money
@@ -51,7 +51,15 @@ def _page(title: str, body: str) -> bytes:
             f"<style>{CSS}</style></head><body><main>{body}</main></body></html>").encode()
 
 
-def quote_page(book: Any, rec: Any, token: str, *, message: str = "") -> bytes:
+class Target(NamedTuple):
+    """What one accept link reaches: its profile's store, price book, owner notifier and link base URL."""
+    store: Any
+    book: Any
+    notify: Callable[[str, Any], None] | None
+    base: str | None
+
+
+def quote_page(book: Any, rec: Any, token: str, *, message: str = "", prefix: str = "") -> bytes:
     q, cur, biz = rec.quote, rec.quote.get("currency", "USD"), book.business
     rows = []
     for line in q["lines"]:
@@ -69,10 +77,10 @@ def quote_page(book: Any, rec: Any, token: str, *, message: str = "") -> bytes:
     open_ = rec.status in {"sent", "viewed"}
     actions = ""
     if open_:
-        actions = (f"<div class=card><form method=post action='/q/{token}/accept'><div class=btns>"
+        actions = (f"<div class=card><form method=post action='{prefix}/q/{token}/accept'><div class=btns>"
                    f"<button class=yes type=submit>Accept quote</button></div></form>"
                    f"<details style='margin-top:14px'><summary class=link>Decline or ask a question</summary>"
-                   f"<form method=post action='/q/{token}/decline'><textarea name=reason rows=3 maxlength=500 "
+                   f"<form method=post action='{prefix}/q/{token}/decline'><textarea name=reason rows=3 maxlength=500 "
                    f"placeholder='Optional: tell {html.escape(biz.get('name', 'us'))} why'></textarea>"
                    f"<div class=btns style='margin-top:10px'><button class=no type=submit>Decline</button></div>"
                    f"</form></details></div>")
@@ -87,7 +95,7 @@ def quote_page(book: Any, rec: Any, token: str, *, message: str = "") -> bytes:
             f"<div class=card><div class=row><div>Subtotal</div><div>{fmt_money(Decimal(q['subtotal']), cur)}</div></div>"
             f"<div class=row><div>{tax_label}</div><div>{fmt_money(Decimal(q['tax']), cur)}</div></div>"
             f"<div class='row tot'><div>Total</div><div>{fmt_money(Decimal(q['total']), cur)}</div></div>"
-            f"<p class=note>Fixed price for the work listed · <a class=link href='/q/{token}/pdf'>Download PDF</a></p></div>"
+            f"<p class=note>Fixed price for the work listed · <a class=link href='{prefix}/q/{token}/pdf'>Download PDF</a></p></div>"
             f"{actions}")
     return _page(f"Quote {rec.number} · {biz.get('name', '')}", body)
 
@@ -100,42 +108,64 @@ class AcceptApp:
     """Framework-free request logic, so it is testable without sockets."""
 
     def __init__(self, get_store: Callable[[], Any], get_book: Callable[[], Any],
-                 notify: Callable[[str, Any], None] | None = None, render_pdf: Callable | None = None):
+                 notify: Callable[[str, Any], None] | None = None, render_pdf: Callable | None = None,
+                 resolve: Callable[[str], Target | None] | None = None):
+        """resolve(profile_name) -> Target for links that name a profile ('' = the process's own). Without it,
+        only plain /q/<token> links work, against get_store / get_book."""
         self.get_store, self.get_book, self.notify, self.render_pdf = get_store, get_book, notify, render_pdf
+        self.resolve = resolve
+
+    def _target(self, name: str) -> Target | None:
+        if self.resolve is not None:
+            return self.resolve(name)
+        return None if name else Target(self.get_store(), self.get_book(), self.notify, None)
 
     def handle(self, method: str, path: str, form: dict[str, str]) -> tuple[int, str, bytes]:
         from .service import ServiceError, customer_action, accept_url
         if path == "/health":
             return 200, "text/plain", b"ok"
         parts = [p for p in path.split("/") if p]
+        name = ""
+        if len(parts) >= 2 and parts[0] == "p":          # /p/<profile>/q/<token>[/action]
+            name, parts = parts[1], parts[2:]
         if len(parts) < 2 or parts[0] != "q":
             return 404, "text/html", message_page("Not found", "This page does not exist.")
         token, action = parts[1], (parts[2] if len(parts) > 2 else "")
-        store, book = self.get_store(), self.get_book()
+        try:
+            target = self._target(name)
+        except Exception:
+            logger.exception("Docket accept page: could not open profile %r", name)
+            return 503, "text/html", message_page("Quote unavailable", "Please try again in a minute.")
+        if target is None:
+            return 404, "text/html", message_page("Not found", "This page does not exist.")
+        store, book, prefix = target.store, target.book, (f"/p/{name}" if name else "")
         try:
             if method == "GET" and action == "":
                 rec = customer_action(store, token, "view")
-                if rec.status == "viewed" and self.notify:
-                    self._safe_notify("viewed", rec)
-                return 200, "text/html", quote_page(book, rec, token)
+                if rec.status == "viewed":
+                    self._safe_notify(target, "viewed", rec)
+                return 200, "text/html", quote_page(book, rec, token, prefix=prefix)
             if method == "GET" and action == "pdf" and self.render_pdf:
                 rec = customer_action(store, token, "view")
-                return 200, "application/pdf", self.render_pdf(book, rec, accept_url(store, rec))
+                return 200, "application/pdf", self.render_pdf(book, rec, accept_url(store, rec, target.base))
             if method == "POST" and action in {"accept", "decline"}:
                 before = customer_action(store, token, "view").status
                 rec = customer_action(store, token, action, note=(form.get("reason") or "")[:500])
-                if rec.status != before and self.notify:
-                    self._safe_notify(rec.status, rec)
+                if rec.status != before:
+                    self._safe_notify(target, rec.status, rec)
                 msg = ("Thanks! Your quote is accepted. We'll be in touch to book a time."
                        if rec.status == "accepted" else "Thanks for letting us know.")
-                return 200, "text/html", quote_page(book, rec, token, message=msg)
+                return 200, "text/html", quote_page(book, rec, token, message=msg, prefix=prefix)
         except ServiceError as exc:
             return 410, "text/html", message_page("Quote unavailable", str(exc))
         return 405, "text/html", message_page("Not allowed", "That action is not available.")
 
-    def _safe_notify(self, event: str, rec: Any) -> None:
+    @staticmethod
+    def _safe_notify(target: Target, event: str, rec: Any) -> None:
+        if target.notify is None:
+            return
         try:
-            self.notify(event, rec)  # type: ignore[misc]
+            target.notify(event, rec)
         except Exception:
             logger.exception("Docket owner notification failed")
 

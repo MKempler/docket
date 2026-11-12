@@ -77,8 +77,7 @@ def quote(quote_id: int) -> dict[str, Any]:
         raise HTTPException(404, f"No quote Q-{quote_id}")
     link = None
     if rec.status in {"sent", "viewed", "accepted", "scheduled", "in_progress", "done"}:
-        base = runtime.public_link() or None
-        link = service.accept_url(store, rec, base)
+        link = service.accept_url(store, rec, runtime.link_base())
     message = service.customer_message(runtime.require_book(), rec, link) if link else None
     return {**_card(rec, store), "customer_info": rec.customer, "quote": rec.quote, "accept_url": link,
             "customer_message": message, "link_is_local": bool(link) and service.link_is_local(link),

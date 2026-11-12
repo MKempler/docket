@@ -346,7 +346,7 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 | **Approvals** | A `pre_tool_call` gate asks before the agent sends a quote or saves a price book change (listing the exact changes), and blocks both, and closing a job, from scheduled runs. A `pre_llm_call` hook adds one line pointing the model at Docket's tools, only on messages about quoting or your price book. |
 | **Payments** | None. Invoices are kept as PDFs. With Obol installed, Docket prepares an Obol draft that your agent creates through Obol's own tool, so Obol's approval applies; Docket never calls Obol itself. |
 | **Automations** | Blueprint jobs you schedule keep running after Docket is removed, until you delete them. |
-| **Profiles** | One Docket business per Hermes process for now. In a gateway that serves several profiles, the first profile to use Docket owns its quote store and customer links. Per-profile support is planned. |
+| **Profiles** | Each Hermes profile has its own Docket data: quotes, price book and customer links (`/p/<profile>/q/…` for a named profile on a gateway that serves several). Quote-card buttons on Telegram, Slack and Discord act on the gateway's default profile, so on a gateway with a separate bot per profile, use the slash commands or Desktop for the other profiles. |
 
 ---
 

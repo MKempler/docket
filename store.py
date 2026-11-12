@@ -288,7 +288,22 @@ class Store:
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (quote_id, version, from_status, to_status, actor, surface, detail, ts))
 
 
+DB_FILENAME = "data.db"          # plugin_db()'s default file in the plugin data folder
+
+
 def open_store() -> Store:
     """The production store, in Hermes's per-plugin data directory (survives updates, follows the profile)."""
     from plugins.plugin_storage import plugin_db
-    return Store(plugin_db("docket"))
+    return Store(plugin_db("docket", DB_FILENAME))
+
+
+def open_store_at(folder) -> Store:
+    """The store already in a given profile's Docket data folder (the accept page reaches named profiles this
+    way, with no profile active). Same file and settings as open_store(); never creates a new database."""
+    from pathlib import Path
+    path = Path(folder) / DB_FILENAME
+    if not path.exists():
+        raise FileNotFoundError(path)
+    conn = sqlite3.connect(path, check_same_thread=False, timeout=10)
+    conn.execute("PRAGMA foreign_keys = ON")
+    return Store(conn)

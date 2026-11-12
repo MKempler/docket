@@ -313,7 +313,7 @@ def _report_tool(name):
             if name == "docket_followups":
                 from .settings import setting
                 days = int((args or {}).get("stale_days") or setting("followup_after_days"))
-                base = runtime.public_link() or None
+                base = runtime.link_base()
                 result = reports.followups(store, stale_days=max(1, days),
                                            accept_url=lambda rec: accept_url(store, rec, base))
             elif name == "docket_run_sheet":
