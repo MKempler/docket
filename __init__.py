@@ -12,8 +12,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 PLUGIN_ID = "docket"
-VERSION = "0.1.0"
-GATED_TOOLS = {"docket_send_quote", "docket_pricebook_save"}
+VERSION = "0.1.1"
+GATED_TOOLS = {"docket_send_quote", "docket_pricebook_save"}            # ask the owner first; never from cron
+CRON_BLOCKED_TOOLS = GATED_TOOLS | {"docket_close_job"}                  # never from scheduled runs
+OBOL_NEXT = ("Docket has NOT created anything in Obol. Tell the owner the invoice is ready and offer to create it "
+             "in Obol. Only if they want that, call obol_create_invoice with obol_payload exactly as given (do not "
+             "change any amount); Obol asks the owner to approve it.")
 
 NEVER_PRICE = ("Never state, estimate or change a price yourself: show the owner exactly the text this tool returns, "
                "and say plainly when a line needs a price.")
@@ -69,10 +73,14 @@ SEND_SCHEMA = {
 CLOSE_SCHEMA = {
     "name": "docket_close_job",
     "description": ("Finish a booked job and create its invoice from the quote (plus any extra work the owner "
-                    "describes, priced from the price book). Hands the invoice to the owner's invoicing plugin as a "
-                    "draft when one is installed, otherwise saves an invoice PDF. Never takes payment."),
+                    "describes, priced from the price book), saved as an invoice PDF in the outbox. Never takes "
+                    "payment and never contacts Obol itself: when the owner's invoicing plugin (Obol) is installed "
+                    "the result includes obol_payload, for obol_create_invoice if the owner wants it there. For a job "
+                    "that is already invoiced it returns the same invoice (and obol_payload), so use it when the "
+                    "owner asks to send an existing invoice to Obol. Owner only; never from scheduled runs."),
     "parameters": {"type": "object", "properties": {
-        "quote_id": {"type": "string", "description": "e.g. Q-1004"},
+        "quote_id": {"type": "string", "description": "e.g. Q-1004, or an invoice number like INV-1001 for an "
+                                                       "already invoiced job"},
         "extra_work": {"type": "string", "description": "Optional extra work done on site, in the owner's words"}},
         "required": ["quote_id"]},
 }
@@ -247,12 +255,16 @@ def _make_close_tool(ctx):
         try:
             from . import runtime
             from .commands import _invoice_text
-            from .service import parse_quote_id
-            inv = runtime.close_out(parse_quote_id(str((args or {}).get("quote_id"))),
+            from .invoices import quote_id_for
+            inv = runtime.close_out(quote_id_for(runtime.store(), str((args or {}).get("quote_id"))),
                                     extra_words=str((args or {}).get("extra_work") or ""), actor="agent",
                                     surface="tool", llm=runtime.llm(ctx))
-            return json.dumps({"ok": True, "invoice": inv["number"], "total": inv["total"], "handoff": inv["handoff"],
-                               "text": _invoice_text(inv)})
+            out = {"ok": True, "invoice": inv["number"], "total": inv["total"], "handoff": inv["handoff"],
+                   "text": _invoice_text(inv, owner_hint=False)}
+            if inv.get("obol_payload"):
+                out["obol_payload"] = inv["obol_payload"]
+                out["next"] = OBOL_NEXT
+            return json.dumps(out)
         except Exception as exc:
             logger.exception("docket_close_job failed")
             return _err(exc)
@@ -374,16 +386,20 @@ def _pricebook_approval_text(preview_id) -> str:
 
 def _make_gate(ctx):
     def pre_tool_call(tool_name=None, args=None, **kwargs):
-        if tool_name not in GATED_TOOLS:
+        if tool_name not in CRON_BLOCKED_TOOLS:
             return None
         try:
             if ctx.current_cron_execution() is not None:
                 return {"action": "block",
                         "message": ("Docket never saves price book changes from scheduled runs."
                                     if tool_name == "docket_pricebook_save" else
+                                    "Docket never closes jobs or makes invoices from scheduled runs."
+                                    if tool_name == "docket_close_job" else
                                     "Docket never sends quotes from scheduled runs. Tap ✅ on the quote card.")}
         except Exception:
             return {"action": "block", "message": "Docket could not confirm this is an interactive session."}
+        if tool_name not in GATED_TOOLS:
+            return None
         if tool_name == "docket_pricebook_save":
             return {"action": "approve", "message": _pricebook_approval_text((args or {}).get("preview_id")),
                     "rule_key": f"docket:{tool_name}"}
@@ -426,18 +442,28 @@ def _card_sent_line(rec) -> str:
             f"Reply with exactly this line and nothing else: {line}")
 
 
-def _in_gateway() -> bool:
-    import sys
-    return "gateway" in sys.argv[1:3]
+def _start_accept_page() -> None:
+    """Customer links sent before a gateway restart must keep working, so the accept page starts as soon as a
+    messaging platform connects. Hermes runs platform factories only inside the gateway; starting is idempotent."""
+    import threading
+    from . import runtime
+    threading.Thread(target=runtime.ensure_accept_server, name="docket-accept-start", daemon=True).start()
+
+
+def _on_connect(channel):
+    """The platform factory Hermes calls at connect time: wire the channel's buttons, then start the accept page."""
+    def factory(native, adapter=None):
+        try:
+            channel.factory(native, adapter)
+        finally:
+            _start_accept_page()
+    return factory
 
 
 def register(ctx):
     from . import runtime
     from .commands import cli_main, cli_setup, docket_admin, jobs, make_pricebook_command, make_quote_command
     runtime.CTX = ctx
-    if _in_gateway():                      # customer links sent before a restart must keep working
-        import threading
-        threading.Thread(target=runtime.ensure_accept_server, name="docket-accept-start", daemon=True).start()
 
     # Docket's own model slot: job intake only maps words to price-book codes, so thinking is switched off
     # (reasoning models otherwise spend minutes before answering) and the owner can pin a faster model for it.
@@ -498,7 +524,7 @@ def _register_channels(ctx):
     channels = [TelegramChannel(runtime.tap), DiscordChannel(runtime.tap), SlackChannel(runtime.tap)]
     for channel in channels:
         try:
-            ctx.register_platform_handler(channel.platform, channel.factory)
+            ctx.register_platform_handler(channel.platform, _on_connect(channel))
             register_channel(channel)
         except Exception as exc:
             logger.info("Docket: %s buttons unavailable (%s)", channel.platform, exc)

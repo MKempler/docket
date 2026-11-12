@@ -1,10 +1,11 @@
 [project]
 name = "docket"
-version = "0.1.0"
+version = "0.1.1"
 description = "Hermes plugin: exact trade quotes from your own price book, one-tap approval, customer acceptance, booked jobs."
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
     "reportlab>=4.2,<6",
     "Pillow>=12,<14",
+    "ruamel.yaml>=0.18,<0.19",   # Hermes ships 0.18.16; declared so the price book loader's needs are explicit
 ]

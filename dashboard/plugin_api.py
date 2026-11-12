@@ -129,8 +129,10 @@ def act(quote_id: int, action: str, body: dict | None = None) -> dict[str, Any]:
             return {"ok": True, "message": f"Q-{quote_id} booked for {day:%a %b} {day.day}"}
         if action == "invoice":
             inv = runtime.close_out(quote_id, extra_words=str(body.get("extra") or ""), surface="desktop")
-            where = "handed to Obol" if inv["handoff"] == "obol" else "PDF saved"
-            return {"ok": True, "message": f"{inv['number']} created ({where})" + (f". {inv['note']}" if inv.get("note") else "")}
+            where = "handed to Obol" if inv["handoff"] == "obol" else "PDF saved"      # "obol": older Docket only
+            obol = (f". To create it in Obol, ask your agent: send invoice {inv['number']} ({inv['quote_number']}) to Obol"
+                    if inv.get("obol_payload") else "")
+            return {"ok": True, "message": f"{inv['number']} created ({where})" + (f". {inv['note']}" if inv.get("note") else "") + obol}
         if action == "paid":
             inv = _module("invoices").mark_paid(store, quote_id, surface="desktop")
             return {"ok": True, "message": f"{inv['number']} marked paid"}

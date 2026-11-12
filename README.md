@@ -31,7 +31,7 @@ https://github.com/user-attachments/assets/cc887d2c-c382-4345-8119-d88323cc7c8e
 <tr><td width="30%"><b>Exact, never guessed</b></td><td>Every line priced in code from your price book. Work it can't price is flagged, and a flagged quote can't be sent.</td></tr>
 <tr><td width="30%"><b>One tap to send</b></td><td>Send, Edit and Discard buttons on Telegram, Slack, Discord and Hermes Desktop. A message ready to forward to the customer follows.</td></tr>
 <tr><td width="30%"><b>Customer accepts online</b></td><td>A clean page with every line and an <b>Accept quote</b> button. You get pinged and book the day with one tap.</td></tr>
-<tr><td width="30%"><b>Job done → invoice</b></td><td>Same engine, extra work included. Handed to Obol as a draft, or a PDF in your outbox.</td></tr>
+<tr><td width="30%"><b>Job done → invoice</b></td><td>Same engine, extra work included. A PDF in your outbox, and ready for Obol if you use it.</td></tr>
 <tr><td width="30%"><b>Prices in your own words</b></td><td><i>"labor 145/hr, sump pump $289 each"</i> or a pasted CSV. Preview first, save on confirm, undo any time.</td></tr>
 <tr><td width="30%"><b>Built into Hermes</b></td><td>Jobs board and Price book pages, a status-bar chip, inline quote cards, a Settings page and three automations.</td></tr>
 </table>
@@ -215,11 +215,11 @@ Business name, phone, email and license number, how long quotes stay valid, invo
 
 ### Close-out and invoicing
 
-`/quote done Q-1007 plus 1 hour labor` finishes the job and makes **INV-1001**, priced by the same engine, extra work included. Docket stops where invoicing starts:
+`/quote done Q-1007 plus 1 hour labor` finishes the job and makes **INV-1001**, priced by the same engine, extra work included. The invoice PDF and email land in Docket's outbox, ready for you to send. Docket stops where invoicing starts:
 
-- **[Obol](https://github.com/UEddy/Obol) installed** and the customer has an email → the invoice goes to Obol as a **draft** (Obol's own approval rules apply).
-- **Otherwise** → an invoice PDF and email land in Docket's outbox, ready for you to send.
+- **[Obol](https://github.com/UEddy/Obol) installed** and the customer has an email → Docket also prepares the invoice as an Obol draft, but never sends it to Obol itself. Your agent creates it with Obol's own `obol_create_invoice` tool when you ask ("send invoice INV-1001 to Obol"), so Obol's own approval prompt, risk checks and block on scheduled runs apply.
 - Extra work that can't be priced **blocks the invoice** instead of silently disappearing.
+- Closing a job never runs from a scheduled job.
 
 ---
 
@@ -343,9 +343,10 @@ Also supported: travel zones by ZIP, member discounts (labor only), materials so
 | **Voice notes** | Transcribed by Hermes's speech-to-text (local Whisper by default). Docket's `pre_transcription` hook adds your price book's item names and aliases to the transcription prompt; if you configured a cloud speech provider, that prompt goes to it with the audio. |
 | **Network** | A local HTTP server for the customer accept page (loopback by default). Messages go only to *your* registered chat, through *your* bots. No telemetry. |
 | **Email** | Docket does **not** send email or texts. It writes the customer email and PDF to the outbox, and hands you a ready-to-forward message; you choose how it reaches the customer. It warns you when a customer link would only open on your own computer. |
-| **Approvals** | A `pre_tool_call` gate asks before the agent sends a quote or saves a price book change (listing the exact changes), and blocks both from scheduled runs. A `pre_llm_call` hook adds one line pointing the model at Docket's tools, only on messages about quoting or your price book. |
-| **Payments** | None. Invoices are handed to Obol as drafts or kept as PDFs. |
+| **Approvals** | A `pre_tool_call` gate asks before the agent sends a quote or saves a price book change (listing the exact changes), and blocks both, and closing a job, from scheduled runs. A `pre_llm_call` hook adds one line pointing the model at Docket's tools, only on messages about quoting or your price book. |
+| **Payments** | None. Invoices are kept as PDFs. With Obol installed, Docket prepares an Obol draft that your agent creates through Obol's own tool, so Obol's approval applies; Docket never calls Obol itself. |
 | **Automations** | Blueprint jobs you schedule keep running after Docket is removed, until you delete them. |
+| **Profiles** | One Docket business per Hermes process for now. In a gateway that serves several profiles, the first profile to use Docket owns its quote store and customer links. Per-profile support is planned. |
 
 ---
 

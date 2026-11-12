@@ -257,13 +257,20 @@ def setup_owner(kwargs: dict) -> str:
             f"can press their buttons. Try: /quote Dana Henderson, 14 Maple St 62707, water heater, permit")
 
 
-def _invoice_text(inv: dict) -> str:
+def _obol_hint(inv: dict) -> str:
+    return (f"\nTo create it in Obol as a draft, ask your agent: send invoice {inv['number']} ({inv['quote_number']}) "
+            f"to Obol. Obol asks you to approve it." if inv.get("obol_payload") else "")
+
+
+def _invoice_text(inv: dict, owner_hint: bool = True) -> str:
+    hint = _obol_hint(inv) if owner_hint else ""
     if inv.get("already"):
-        return f"{inv['quote_number']} already has invoice {inv['number']} ({fmt_money(Decimal(inv['total']))}, {inv['status']})."
-    where = ("handed to your invoicing plugin (Obol) as a draft" if inv["handoff"] == "obol"
+        return (f"{inv['quote_number']} already has invoice {inv['number']} ({fmt_money(Decimal(inv['total']))}, "
+                f"{inv['status']})." + hint)
+    where = ("handed to your invoicing plugin (Obol) as a draft" if inv["handoff"] == "obol"      # older Docket
              else f"saved to `{inv['pdf']}`" if inv.get("pdf") else "saved")
     out = f"🧾 {inv['number']} for {inv['quote_number']} {inv['customer']['name']}: {fmt_money(Decimal(inv['total']))}, due {inv['due']}. Invoice {where}."
-    return out + (f"\n{inv['note']}" if inv.get("note") else "")
+    return out + (f"\n{inv['note']}" if inv.get("note") else "") + hint
 
 
 PRICEBOOK_USAGE = """Docket price book

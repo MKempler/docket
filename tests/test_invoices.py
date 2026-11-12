@@ -71,18 +71,27 @@ def test_only_finished_or_booked_jobs(store, tmp_path):
         close_out(store, BOOK, d.record.id, outbox_root=tmp_path)
 
 
-def test_obol_handoff_payload_and_email_requirement(store, tmp_path):
-    seen = []
+def test_obol_draft_is_prepared_never_sent(store, tmp_path):
+    """With Obol installed the invoice comes back with obol_payload for the agent; Docket itself calls nothing."""
     qid = booked(store, tmp_path)
-    inv = close_out(store, BOOK, qid, outbox_root=tmp_path, today=DAY, handoff=lambda i: seen.append(obol_payload(i)) or "in_123")
-    assert inv["handoff"] == "obol" and inv["ref"] == "in_123"
-    p = seen[0]
+    inv = close_out(store, BOOK, qid, outbox_root=tmp_path, today=DAY, obol=True, render=render_invoice_pdf)
+    assert inv["handoff"] == "obol_ready" and inv["ref"] == "" and Path(inv["pdf"]).exists()   # local PDF still made
+    p = inv["obol_payload"]
+    assert p == obol_payload(get_invoice(store, qid))
     assert p["send"] is False and p["customer_email"] == "dana@example.com" and p["currency"] == "usd"
     assert all(item["quantity"] == 1 for item in p["line_items"])
     assert round(sum(Decimal(str(i["amount"])) for i in p["line_items"]), 2) == Decimal(inv["total"])   # adds up exactly
+    again = close_out(store, BOOK, qid, outbox_root=tmp_path, today=DAY, obol=True)   # "send INV-1001 to Obol" later
+    assert again["already"] and again["number"] == inv["number"] and again["obol_payload"] == p
+
+
+def test_obol_needs_an_email_and_an_installed_plugin(store, tmp_path):
     q2 = booked(store, tmp_path, "Kim Lee, 62711, 2 x TOILET-RESET")                  # no email on file
-    inv2 = close_out(store, BOOK, q2, outbox_root=tmp_path, today=DAY, handoff=lambda i: "never")
-    assert inv2["handoff"] == "local" and "email" in inv2["note"]
+    inv2 = close_out(store, BOOK, q2, outbox_root=tmp_path, today=DAY, obol=True)
+    assert inv2["handoff"] == "local" and "email" in inv2["note"] and "obol_payload" not in inv2
+    q3 = booked(store, tmp_path)
+    inv3 = close_out(store, BOOK, q3, outbox_root=tmp_path, today=DAY)                # Obol not installed
+    assert inv3["handoff"] == "local" and "obol_payload" not in inv3 and inv3["note"] == ""
 
 
 def test_email_is_picked_up_from_the_words():

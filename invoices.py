@@ -1,7 +1,8 @@
-"""Close-out: a finished job becomes an invoice, priced by the same engine, then handed to the owner's
-invoicing tool (Obol) when one is installed, or kept as a local invoice PDF in the outbox.
+"""Close-out: a finished job becomes an invoice, priced by the same engine, kept as a local invoice PDF in the
+outbox. When the owner's invoicing plugin (Obol) is installed, the invoice also comes back as a prepared Obol draft
+(obol_payload) for the agent to create through obol_create_invoice, so Obol's own approval and checks run.
 
-Docket stops where invoicing starts: it never takes payment itself.
+Docket never calls Obol itself and never takes payment.
 """
 
 from __future__ import annotations
@@ -50,13 +51,16 @@ def get_invoice(store: Store, quote_id: int) -> dict[str, Any] | None:
 
 
 def close_out(store: Store, book: PriceBook, quote_id: int, *, outbox_root: Path, extra_words: str = "",
-              llm: Any = None, handoff: Callable[[dict], str] | None = None, actor: str = "owner",
+              llm: Any = None, obol: bool = False, actor: str = "owner",
               surface: str = "", today: date | None = None, render: Callable | None = None) -> dict[str, Any]:
-    """Finish a job and make its invoice. Safe to repeat: a job is invoiced once."""
+    """Finish a job and make its invoice. Safe to repeat: a job is invoiced once.
+
+    obol: the owner's invoicing plugin is installed. Nothing is sent to it from here; the result carries
+    obol_payload (when the customer has an email) for the agent to pass to obol_create_invoice."""
     _ensure(store)
     existing = get_invoice(store, quote_id)
     if existing:
-        return {**existing, "already": True}
+        return {**existing, "already": True, **_obol_fields(existing, obol)}
     rec = store.get(quote_id)
     if rec.status == "scheduled":
         rec = store.transition(quote_id, "in_progress", actor=actor, surface=surface)
@@ -96,17 +100,14 @@ def close_out(store: Store, book: PriceBook, quote_id: int, *, outbox_root: Path
              due.isoformat(), now_iso()))
     invoice = get_invoice(store, quote_id)
 
-    # Hand-off to the owner's invoicing plugin, else a local PDF invoice in the outbox.
+    # Always a local PDF invoice in the outbox. With Obol installed it is also marked ready for Obol: the agent
+    # creates the draft through obol_create_invoice, never Docket, so Obol's own approval gate runs.
     handed, ref, problem = "local", "", ""
-    if handoff is not None:
-        if not rec.customer.get("email"):
-            problem = "Add the customer's email to hand this invoice to your invoicing plugin."
+    if obol:
+        if rec.customer.get("email"):
+            handed = "obol_ready"
         else:
-            try:
-                ref = handoff(invoice) or ""
-                handed = "obol"
-            except Exception as exc:
-                problem = f"Invoicing plugin declined: {exc}"
+            problem = "Add the customer's email to create this invoice in Obol."
     pdf_path = ""
     if render is not None:
         from .outbox import write_outbox
@@ -121,7 +122,30 @@ def close_out(store: Store, book: PriceBook, quote_id: int, *, outbox_root: Path
         store.conn.execute("UPDATE invoices SET handoff = ?, ref = ? WHERE id = ?", (handed, ref, invoice["id"]))
     store.transition(quote_id, "invoiced", actor=actor, surface=surface,
                      detail=f"{invoice['number']}" + (f" (+ {extra_note})" if extra_note else ""))
-    return {**get_invoice(store, quote_id), "pdf": pdf_path, "note": problem, "already": False}
+    made = get_invoice(store, quote_id)
+    return {**made, "pdf": pdf_path, "note": problem, "already": False, **_obol_fields(made, obol)}
+
+
+def quote_id_for(store: Store, ref: str) -> int:
+    """A quote id from 'Q-1007' or from an invoice number like 'INV-1001' (its job)."""
+    from .service import parse_quote_id
+    t = (ref or "").strip().upper()
+    if t.startswith("INV"):
+        n = t.removeprefix("INV").lstrip("-").strip()
+        _ensure(store)
+        row = store.conn.execute("SELECT quote_id FROM invoices WHERE id = ?", (int(n),)).fetchone() if n.isdigit() else None
+        if row is None:
+            raise InvoiceError(f"{ref!r} is not one of your invoices")
+        return int(row[0])
+    return parse_quote_id(ref)
+
+
+def _obol_fields(invoice: dict, obol: bool) -> dict:
+    """{'obol_payload': ...} when this invoice can go to Obol (installed, customer email on file, not already
+    handed over by an older Docket), else {}."""
+    if not obol or not invoice["customer"].get("email") or invoice.get("handoff") == "obol":
+        return {}
+    return {"obol_payload": obol_payload(invoice)}
 
 
 def mark_paid(store: Store, quote_id: int, *, actor: str = "owner", surface: str = "") -> dict[str, Any]:
@@ -139,7 +163,8 @@ def mark_paid(store: Store, quote_id: int, *, actor: str = "owner", surface: str
 
 def obol_payload(invoice: dict) -> dict:
     """obol_create_invoice arguments: each Docket line as one item at its exact total (Obol takes whole-number
-    quantities), tax as its own line, created as a DRAFT so Obol's own approval rules apply before sending."""
+    quantities), tax as its own line, as a DRAFT (send: False). Docket never calls Obol with it: the agent passes
+    it to obol_create_invoice, so Obol's own approval, risk checks and unattended-run block apply."""
     doc, cur = invoice["doc"], invoice["doc"].get("currency", "USD")
     items = []
     for line in doc["lines"]:

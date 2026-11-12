@@ -1,5 +1,5 @@
 name: docket
-version: 0.1.0
+version: 0.1.1
 description: "Quotes for trades businesses: exact prices from your own price book, approve with one tap, the customer accepts, the job is booked."
 author: Max Kempler
 manifest_version: 2
